@@ -28,3 +28,5 @@
     "typescript": "^5"
   }
 }
+"prisma": "^6.6.0",
+"@prisma/client": "^6.6.0"
