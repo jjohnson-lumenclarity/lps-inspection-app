@@ -1,14 +1,14 @@
 'use client'
 import { useState, useTransition, useEffect } from 'react'
-import { createProject } from './actions'  // ← NEW: Use separate actions.ts
+import Link from 'next/link'  // ← ADDED
+import { createProject } from './actions'
 
 export default function Dashboard() {
   const [projects, setProjects] = useState([])
   const [isPending, startTransition] = useTransition()
 
-  // Load projects
   useEffect(() => {
-    fetch('/api/projects')  // We'll add this API next
+    fetch('/api/projects')
       .then(res => res.json())
       .then(setProjects)
   }, [])
@@ -20,7 +20,6 @@ export default function Dashboard() {
       margin: '0 auto',
       fontFamily: 'sans-serif'
     }}>
-      {/* Your header - UNCHANGED */}
       <div style={{ 
         display: 'flex', 
         justifyContent: 'space-between',
@@ -46,7 +45,6 @@ export default function Dashboard() {
         </span>
       </div>
 
-      {/* YOUR FORM - SIMPLIFIED */}
       <form action={createProject} style={{
         background: 'white',
         padding: 30,
@@ -93,7 +91,6 @@ export default function Dashboard() {
         </div>
       </form>
 
-      {/* PROJECTS GRID - UNCHANGED */}
       <div style={{display: 'grid', gap: 20, gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr)')}}>
         {projects.length === 0 ? (
           <div style={{
@@ -117,13 +114,18 @@ export default function Dashboard() {
               <p style={{margin: '0 0 20px 0', color: '#6B7280'}}>
                 {project.address}
               </p>
-              <button style={{
-                padding: '10px 20px', background: '#EF4444',
-                color: 'white', border: 'none',
-                borderRadius: 6, fontWeight: 'bold', cursor: 'pointer'
+              {/* ← BUTTON CHANGED TO LINK */}
+              <Link href={`/inspections/${project.id}`} style={{
+                padding: '10px 20px', 
+                background: '#3B82F6',
+                color: 'white', 
+                textDecoration: 'none',
+                borderRadius: 6, 
+                fontWeight: 'bold', 
+                display: 'inline-block'
               }}>
                 📋 New Inspection
-              </button>
+              </Link>
             </div>
           ))
         )}
