@@ -1,14 +1,14 @@
+import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { NextRequest, NextResponse } from 'next/server';
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id: projectId } = await params;
+  
   const inspections = await prisma.inspection.findMany({
-    where: { projectId },
-    orderBy: { createdAt: 'desc' }
+    where: { projectId },  // ← Direct projectId field
+    orderBy: { createdAt: 'desc' },
+    include: { photos: true }
   });
-  return NextResponse.json(inspections);
+  
+  return Response.json(inspections);
 }

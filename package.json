@@ -14,7 +14,8 @@
     "react-dom": "19.2.3",
     "@prisma/client": "^6.6.0",
     "prisma": "^6.6.0",
-    "@react-google-maps/api": "^2.19.5"  ← HERE!
+    "@react-google-maps/api": "^2.19.5",
+    "@prisma/adapter-neon": "^1.0.0"
   },
   "devDependencies": {
     "tailwindcss": "^4",
