@@ -91,7 +91,7 @@ export default function Dashboard() {
         </div>
       </form>
 
-      <div style={{display: 'grid', gap: 20, gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr)')}}>
+      <div style={{display: 'grid', gap: '20px', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))'}}>
         {projects.length === 0 ? (
           <div style={{
             gridColumn: '1 / -1', padding: 60,
