@@ -1,0 +1,51 @@
+'use client';
+
+export default function ProjectDetail({ params }: { params: { id: string } }) {
+  return (
+    <div className="p-6 max-w-2xl mx-auto">
+      <a href="/projects" className="text-blue-600 hover:underline mb-6 inline-block">
+        ← Back to Projects
+      </a>
+      
+      <h1 className="text-3xl font-bold mb-4">
+        Project #{params.id}
+      </h1>
+      
+      <div className="bg-gray-50 p-6 rounded-lg">
+        <h2 className="text-xl font-semibold mb-4">Inspection Checklist</h2>
+        
+        <form className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium mb-1">Visual Inspection Date</label>
+            <input type="date" className="border px-3 py-2 w-full rounded" />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium mb-1">Equipment Status</label>
+            <select className="border px-3 py-2 w-full rounded">
+              <option>Passed</option>
+              <option>Failed - Minor</option>
+              <option>Failed - Critical</option>
+            </select>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium mb-1">Notes</label>
+            <textarea 
+              rows={4} 
+              className="border px-3 py-2 w-full rounded"
+              placeholder="Document findings..."
+            />
+          </div>
+          
+          <button 
+            type="submit"
+            className="bg-green-600 text-white px-6 py-2 rounded font-medium hover:bg-green-700"
+          >
+            Save Inspection
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
