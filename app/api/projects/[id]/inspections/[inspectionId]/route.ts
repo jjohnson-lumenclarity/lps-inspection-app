@@ -1,5 +1,10 @@
-// ADD THIS FIRST
-export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string; inspectionId: string }> }) {
+import { prisma } from '@/lib/prisma';
+import { NextResponse, NextRequest } from 'next/server';  // ← ADDED
+
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string; inspectionId: string }> }
+) {
   const { inspectionId } = await params;
   const { roof, siding, windows, notes } = await request.json();
 
@@ -15,11 +20,12 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string; inspectionId: string }> }
 ) {
-  const { inspectionId } = await params;  // Don't need projectId for delete
+  const { inspectionId } = await params;
   
   await prisma.inspection.delete({
-    where: { id: inspectionId }  // Just inspection ID
+    where: { id: inspectionId }
   });
   
   return NextResponse.json({ success: true });
 }
+
