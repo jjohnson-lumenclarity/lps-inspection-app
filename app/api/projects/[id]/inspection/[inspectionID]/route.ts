@@ -5,9 +5,8 @@ import path from 'path';
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string; photoId: string }> }
-) {
-  const { inspectionId } = await params;
+{ params }: { params: Promise<{ id: string; inspectionID: string }> }
+const { id, inspectionID } = await params;
   const formData = await request.formData();
   const file = formData.get('photo') as File;
   
