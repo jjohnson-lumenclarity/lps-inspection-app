@@ -1,12 +1,13 @@
 import { prisma } from '@/lib/prisma';
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { writeFile } from 'fs/promises';
 import path from 'path';
 
 export async function POST(
   request: NextRequest,
-{ params }: { params: Promise<{ id: string; inspectionID: string }> }
-const { id, inspectionID } = await params;
+  { params }: { params: Promise<{ id: string; inspectionID: string }> }
+) {
+  const { inspectionID } = await params;
   const formData = await request.formData();
   const file = formData.get('photo') as File;
   
@@ -14,14 +15,14 @@ const { id, inspectionID } = await params;
 
   const bytes = await file.arrayBuffer();
   const buffer = Buffer.from(bytes);
-  const filename = `${inspectionId}-${Date.now()}-${file.name}`;
+  const filename = `${inspectionID}-${Date.now()}-${file.name}`;
   const filepath = path.join(process.cwd(), 'public/uploads', filename);
   
   await writeFile(filepath, buffer);
   
   await prisma.inspectionPhoto.create({
     data: {
-      inspectionId,
+      inspectionId: inspectionID,
       url: `/uploads/${filename}`,
       filename: file.name
     }
