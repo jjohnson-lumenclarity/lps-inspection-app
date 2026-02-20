@@ -23,7 +23,7 @@ export default function Dashboard() {
       status: newProject.status
     };
     setProjects([...projects, project]);
-    setNewProject({ title: '', description: '', status: 'Active' });
+    setNewProject({ title: '', description: '', address: '', status: 'Active' });
   };
 
   return (
