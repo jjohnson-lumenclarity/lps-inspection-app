@@ -1,6 +1,11 @@
 'use client'
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 interface Project {
   id: string;
@@ -8,23 +13,72 @@ interface Project {
   description: string;
   address: string; 
   status: string;
+  created_at?: string;
 }
 
 export default function Dashboard() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [newProject, setNewProject] = useState({ title: '', description: '', address: '', status: 'Active' });
   const [editingProject, setEditingProject] = useState<Project | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  const addProject = () => {
-    const project: Project = {
-      id: Date.now().toString(),
-      title: newProject.title,
-      description: newProject.description,
-      address: newProject.address,
-      status: newProject.status
-    };
-    setProjects([...projects, project]);
-    setNewProject({ title: '', description: '', address: '', status: 'Active' });
+  // Load projects from Supabase
+  useEffect(() => {
+    fetchProjects();
+  }, []);
+
+  const fetchProjects = async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('projects')
+      .select('*')
+      .order('created_at', { ascending: false });
+    
+    if (error) console.error('Error:', error);
+    else setProjects(data || []);
+    setLoading(false);
+  };
+
+  const addProject = async () => {
+    const { data, error } = await supabase
+      .from('projects')
+      .insert([newProject])
+      .select()
+      .single();
+    
+    if (error) console.error('Error:', error);
+    else {
+      setProjects([data, ...projects]);
+      setNewProject({ title: '', description: '', address: '', status: 'Active' });
+    }
+  };
+
+  const updateProject = async () => {
+    if (editingProject) {
+      const { error } = await supabase
+        .from('projects')
+        .update(newProject)
+        .eq('id', editingProject.id);
+      
+      if (error) console.error('Error:', error);
+      else {
+        setProjects(projects.map(p => 
+          p.id === editingProject.id ? { ...newProject, id: editingProject.id } : p
+        ));
+        setEditingProject(null);
+        setNewProject({ title: '', description: '', address: '', status: 'Active' });
+      }
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    const { error } = await supabase
+      .from('projects')
+      .delete()
+      .eq('id', id);
+    
+    if (error) console.error('Error:', error);
+    else setProjects(projects.filter(p => p.id !== id));
   };
 
   const handleEdit = (project: Project) => {
@@ -37,26 +91,14 @@ export default function Dashboard() {
     });
   };
 
-  const updateProject = () => {
-    if (editingProject) {
-      setProjects(projects.map(p => 
-        p.id === editingProject.id 
-          ? { ...newProject, id: editingProject.id }
-          : p
-      ));
-      setEditingProject(null);
-      setNewProject({ title: '', description: '', address: '', status: 'Active' });
-    }
-  };
-
-  const handleDelete = (id: string) => {
-    setProjects(projects.filter(p => p.id !== id));
-  };
-
   const cancelEdit = () => {
     setEditingProject(null);
     setNewProject({ title: '', description: '', address: '', status: 'Active' });
   };
+
+  if (loading) {
+    return <div style={{ padding: '40px', textAlign: 'center' }}>Loading projects...</div>;
+  }
 
   return (
     <main style={{ padding: '40px', maxWidth: '1200px', margin: '0 auto', fontFamily: 'system-ui' }}>
