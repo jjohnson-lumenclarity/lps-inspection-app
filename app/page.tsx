@@ -5,10 +5,12 @@ import { createProject } from './actions'
 
 // Project type definition
 interface Project {
-  id: string
-  title: string     // ✅ for project.title
-  description: string  // ✅ for project.description  
-  status: string    // ✅ for project.status
+  id: string;
+  title: string;
+  description: string;
+  status: string;
+  name?: string;     // ✅
+  address?: string;  // ✅
 }
 
 export default function Dashboard() {
