@@ -6,8 +6,9 @@ import { createProject } from './actions'
 // Project type definition
 interface Project {
   id: string
-  name: string
-  address: string
+  title: string     // ✅ for project.title
+  description: string  // ✅ for project.description  
+  status: string    // ✅ for project.status
 }
 
 export default function Dashboard() {
