@@ -30,6 +30,7 @@ export default function Dashboard() {
         LPS Inspection Dashboard
       </h1>
 
+      {/* Add Project Form */}
       <div style={{ 
         background: 'white', 
         padding: '24px', 
@@ -98,6 +99,22 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/* MAP - NEW! */}
+      <div style={{ marginBottom: '32px' }}>
+        <h2 style={{ fontSize: '24px', color: '#1F2937', marginBottom: '16px' }}>
+          Project Locations - Rockford, MI
+        </h2>
+        <iframe
+          width="100%"
+          height="500"
+          src="https://www.google.com/maps/embed/v1/place?key=AIzaSyAodLZjU2qN3sxua9fIy54Xc12tTwiVTD4&q=Rockford+MI&zoom=11"
+          style={{ border: 0, borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+          allowFullScreen
+          loading="lazy"
+        />
+      </div>
+
+      {/* Projects List */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: '24px' }}>
         {projects.length === 0 ? (
           <p style={{ gridColumn: '1 / -1', textAlign: 'center', color: '#6B7280', fontSize: '18px' }}>
