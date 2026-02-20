@@ -12,7 +12,7 @@ interface Project {
 
 export default function Dashboard() {
   const [projects, setProjects] = useState<Project[]>([]);
-  const [newProject, setNewProject] = useState({ title: '', description: '', status: 'Active' });
+  const [newProject, setNewProject] = useState({ title: '', description: '', address: '', status: 'Active' });
 
   const addProject = () => {
     const project: Project = {
