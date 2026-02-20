@@ -1,10 +1,17 @@
 'use client'
 import { useState, useTransition, useEffect } from 'react'
-import Link from 'next/link'  // ← ADDED
+import Link from 'next/link'
 import { createProject } from './actions'
 
+// Add Project type
+interface Project {
+  id: string
+  name: string
+  address: string
+}
+
 export default function Dashboard() {
-  const [projects, setProjects] = useState([])
+  const [projects, setProjects] = useState<Project[]>([])
   const [isPending, startTransition] = useTransition()
 
   useEffect(() => {
