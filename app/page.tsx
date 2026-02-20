@@ -3,7 +3,7 @@ import { useState, useTransition, useEffect } from 'react'
 import Link from 'next/link'
 import { createProject } from './actions'
 
-// Add Project type
+// Project type definition
 interface Project {
   id: string
   name: string
@@ -121,7 +121,6 @@ export default function Dashboard() {
               <p style={{margin: '0 0 20px 0', color: '#6B7280'}}>
                 {project.address}
               </p>
-              {/* ← BUTTON CHANGED TO LINK */}
               <Link href={`/inspections/${project.id}`} style={{
                 padding: '10px 20px', 
                 background: '#3B82F6',
