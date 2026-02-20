@@ -9,22 +9,18 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@prisma/client": "^6.6.0",
-    "@react-google-maps/api": "^2.19.5",
     "next": "16.1.6",
     "react": "19.2.3",
-    "react-dom": "19.2.3"
+    "react-dom": "19.2.3",
     "@supabase/supabase-js": "^2.45.4"
   },
   "devDependencies": {
-    "@prisma/adapter-neon": "^7.4.0",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
     "postcss": "^8",
-    "prisma": "^7.4.0",
     "tailwindcss": "^4",
     "typescript": "^5"
   }
