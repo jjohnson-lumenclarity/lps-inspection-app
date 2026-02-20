@@ -13,6 +13,7 @@ interface Project {
 export default function Dashboard() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [newProject, setNewProject] = useState({ title: '', description: '', address: '', status: 'Active' });
+  const [editingProject, setEditingProject] = useState<Project | null>(null);
 
   const addProject = () => {
     const project: Project = {
@@ -26,13 +27,44 @@ export default function Dashboard() {
     setNewProject({ title: '', description: '', address: '', status: 'Active' });
   };
 
+  const handleEdit = (project: Project) => {
+    setEditingProject(project);
+    setNewProject({ 
+      title: project.title, 
+      description: project.description, 
+      address: project.address, 
+      status: project.status 
+    });
+  };
+
+  const updateProject = () => {
+    if (editingProject) {
+      setProjects(projects.map(p => 
+        p.id === editingProject.id 
+          ? { ...newProject, id: editingProject.id }
+          : p
+      ));
+      setEditingProject(null);
+      setNewProject({ title: '', description: '', address: '', status: 'Active' });
+    }
+  };
+
+  const handleDelete = (id: string) => {
+    setProjects(projects.filter(p => p.id !== id));
+  };
+
+  const cancelEdit = () => {
+    setEditingProject(null);
+    setNewProject({ title: '', description: '', address: '', status: 'Active' });
+  };
+
   return (
     <main style={{ padding: '40px', maxWidth: '1200px', margin: '0 auto', fontFamily: 'system-ui' }}>
       <h1 style={{ fontSize: '32px', color: '#1F2937', marginBottom: '32px' }}>
         LPS Inspection Dashboard
       </h1>
 
-      {/* Add Project Form */}
+      {/* Add/Edit Project Form */}
       <div style={{ 
         background: 'white', 
         padding: '24px', 
@@ -41,7 +73,7 @@ export default function Dashboard() {
         marginBottom: '32px'
       }}>
         <h2 style={{ fontSize: '24px', color: '#1F2937', marginBottom: '16px' }}>
-          Add New Project
+          {editingProject ? 'Edit Project' : 'Add New Project'}
         </h2>
         <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
           <input
@@ -69,17 +101,17 @@ export default function Dashboard() {
             }}
           />
           <input
-  placeholder="123 Main St, Rockford MI"
-  value={newProject.address || ''}
-  onChange={(e) => setNewProject({ ...newProject, address: e.target.value })}
-  style={{
-    padding: '12px 16px',
-    border: '1px solid #D1D5DB',
-    borderRadius: '8px',
-    fontSize: '16px',
-    minWidth: '300px'
-  }}
-/>
+            placeholder="123 Main St, Rockford MI"
+            value={newProject.address || ''}
+            onChange={(e) => setNewProject({ ...newProject, address: e.target.value })}
+            style={{
+              padding: '12px 16px',
+              border: '1px solid #D1D5DB',
+              borderRadius: '8px',
+              fontSize: '16px',
+              minWidth: '300px'
+            }}
+          />
           <select
             value={newProject.status}
             onChange={(e) => setNewProject({ ...newProject, status: e.target.value })}
@@ -94,29 +126,48 @@ export default function Dashboard() {
             <option>In Progress</option>
             <option>Completed</option>
           </select>
-          <button
-            onClick={addProject}
-            disabled={!newProject.title.trim()}
-            style={{
-              padding: '12px 24px',
-              background: newProject.title.trim() ? '#3B82F6' : '#9CA3AF',
-              color: 'white',
-              border: 'none',
-              borderRadius: '8px',
-              fontSize: '16px',
-              fontWeight: '600',
-              cursor: newProject.title.trim() ? 'pointer' : 'not-allowed'
-            }}
-          >
-            Add Project
-          </button>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button
+              onClick={editingProject ? updateProject : addProject}
+              disabled={!newProject.title.trim()}
+              style={{
+                padding: '12px 24px',
+                background: newProject.title.trim() ? '#3B82F6' : '#9CA3AF',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                fontSize: '16px',
+                fontWeight: '600',
+                cursor: newProject.title.trim() ? 'pointer' : 'not-allowed'
+              }}
+            >
+              {editingProject ? 'Update Project' : 'Add Project'}
+            </button>
+            {editingProject && (
+              <button
+                onClick={cancelEdit}
+                style={{
+                  padding: '12px 24px',
+                  background: '#6B7280',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontSize: '16px',
+                  fontWeight: '600',
+                  cursor: 'pointer'
+                }}
+              >
+                Cancel
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* MAP - NEW! */}
+      {/* MAP - Rockford, MI */}
       <div style={{ marginBottom: '32px' }}>
         <h2 style={{ fontSize: '24px', color: '#1F2937', marginBottom: '16px' }}>
-          Project Locations - Rockford, MI
+          Project Locations - Rockford, MI ({projects.length} projects)
         </h2>
         <iframe
           width="100%"
@@ -146,13 +197,17 @@ export default function Dashboard() {
               <h3 style={{ margin: '0 0 8px 0', color: '#1F2937', fontSize: '20px' }}>
                 {project.title}
               </h3>
-              <p style={{ margin: '0 0 20px 0', color: '#6B7280' }}>
+              <p style={{ margin: '0 0 8px 0', color: '#6B7280' }}>
                 {project.description}
+              </p>
+              <p style={{ margin: '0 0 12px 0', color: '#374151', fontSize: '14px' }}>
+                📍 {project.address}
               </p>
               <div style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: '8px'
+                gap: '8px',
+                marginBottom: '16px'
               }}>
                 <span style={{
                   padding: '4px 12px',
@@ -165,6 +220,38 @@ export default function Dashboard() {
                 }}>
                   {project.status}
                 </span>
+              </div>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  onClick={() => handleEdit(project)}
+                  style={{
+                    padding: '8px 16px',
+                    background: '#3B82F6',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Edit
+                </button>
+                <button
+                  onClick={() => handleDelete(project.id)}
+                  style={{
+                    padding: '8px 16px',
+                    background: '#EF4444',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Delete
+                </button>
               </div>
             </div>
           ))
