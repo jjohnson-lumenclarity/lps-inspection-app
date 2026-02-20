@@ -6,6 +6,7 @@ interface Project {
   id: string;
   title: string;
   description: string;
+  address: string; 
   status: string;
 }
 
@@ -18,6 +19,7 @@ export default function Dashboard() {
       id: Date.now().toString(),
       title: newProject.title,
       description: newProject.description,
+      address: newProject.address,
       status: newProject.status
     };
     setProjects([...projects, project]);
@@ -66,6 +68,18 @@ export default function Dashboard() {
               minWidth: '300px'
             }}
           />
+          <input
+  placeholder="123 Main St, Rockford MI"
+  value={newProject.address || ''}
+  onChange={(e) => setNewProject({ ...newProject, address: e.target.value })}
+  style={{
+    padding: '12px 16px',
+    border: '1px solid #D1D5DB',
+    borderRadius: '8px',
+    fontSize: '16px',
+    minWidth: '300px'
+  }}
+/>
           <select
             value={newProject.status}
             onChange={(e) => setNewProject({ ...newProject, status: e.target.value })}
