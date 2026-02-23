@@ -18,6 +18,7 @@ export default function Inspections() {
     const file = e.target.files?.[0];
     if (file) {
       setSelectedFiles(prev => ({ ...prev, [projectId]: file }));
+    }
 const handleEdit = (project: any) => {
   console.log('Edit project:', project);
   alert('Edit coming soon!');
