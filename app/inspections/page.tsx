@@ -111,19 +111,20 @@ export default function Inspections() {
                 onClick={handleImageClick}
               >
                 {/* Pins */}
-                {pins.map((pin, index) => (
-                  <div
-                    key={index}
-                    className="absolute w-20 h-20 bg-gradient-to-br from-red-400 to-pink-500 border-8 border-white/90 rounded-full shadow-2xl flex items-center justify-center text-white font-bold text-lg cursor-pointer hover:scale-110 transition-all z-20"
-                    style={{
-                      left: `${pin.x}%`,
-                      top: `${pin.y}%`,
-                      transform: 'translate(-50%, -50%)'
-                    }}
-                  >
-                    {pin.name.slice(0, 3).toUpperCase()}
-                  </div>
-                ))}
+               {pins.map((pin, index) => (
+  <div
+    key={index}
+    className="absolute w-20 h-20 bg-red-500 border-8 border-white rounded-full shadow-2xl flex items-center justify-center text-white font-bold text-lg z-[999] pointer-events-none"
+    style={{
+      left: `${pin.x}%`,
+      top: `${pin.y}%`,
+      transform: 'translate(-50%, -50%)'
+    }}
+  >
+    {pin.name.slice(0, 3)}
+  </div>
+))}
+
                 
                 {/* Hover text */}
                 <div className="absolute inset-0 bg-black/0 group-hover/map:bg-black/20 transition-all flex items-center justify-center pointer-events-none rounded-3xl">
