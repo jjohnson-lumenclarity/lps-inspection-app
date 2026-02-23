@@ -14,57 +14,67 @@ export default function Inspections() {
 
   const fetchProjects = async () => {
     const supabase = createClient();
-    const { data } = await supabase.from('projects').select('*');
+    const { data } = await supabase
+      .from('projects')
+      .select('*, project_areas(name, x_percent, y_percent)');
     setProjects(data || []);
     setLoading(false);
   };
 
   const handleImageClick = (e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / rect.width) * 100;
-    const y = ((e.clientY - rect.top) / rect.height) * 100;
+    const x = Math.round(((e.clientX - rect.left) / rect.width) * 100);
+    const y = Math.round(((e.clientY - rect.top) / rect.height) * 100);
     
-    const zoneName = prompt('Zone name? (Parking Lot, Entry...)') || 'New Zone';
-    const newPin = { x: Math.round(x), y: Math.round(y), name: zoneName };
-    setPins([...pins, newPin]);
+    const zoneName = prompt(`Lighting zone name?\n\nExamples: Parking Pole #3, Entry Signage, Wall Pack #7`) || 'New Zone';
+    if (!zoneName || zoneName === 'New Zone') return;
+    
+    const newPin = { x, y, name: zoneName };
+    const updatedPins = [...pins, newPin];
+    setPins(updatedPins);
     
     // Save to Supabase
     const supabase = createClient();
     supabase.from('project_areas').insert([{
       project_id: selectedProject.id,
       name: zoneName,
-      x_percent: newPin.x,
-      y_percent: newPin.y
+      x_percent: x,
+      y_percent: y
     }]);
   };
 
-  if (loading) return <div className="p-8 text-center">Loading...</div>;
+  if (loading) return <div className="p-8 text-center text-2xl font-bold text-gray-500">Loading inspections...</div>;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 p-6">
-      <div className="max-w-6xl mx-auto">
-        <h1 className="text-4xl font-bold mb-8 text-center bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-          🏢 Lighting Inspection
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 sm:p-8">
+      <div className="max-w-7xl mx-auto">
+        <h1 className="text-5xl font-black mb-12 text-center bg-gradient-to-r from-gray-800 via-gray-600 to-slate-800 bg-clip-text text-transparent drop-shadow-2xl">
+          🏢 Commercial Lighting Inspector
         </h1>
 
-        {/* Project List */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+        {/* Project Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8 mb-16">
           {projects.map((project: any) => (
             <div 
               key={project.id}
-              className="bg-white p-6 rounded-2xl shadow-lg hover:shadow-2xl cursor-pointer border-2 border-transparent hover:border-blue-300 transition-all"
+              className="group bg-white/80 backdrop-blur-xl p-8 rounded-3xl shadow-2xl hover:shadow-3xl cursor-pointer border border-white/50 hover:border-blue-200/70 hover:bg-white transition-all duration-500 hover:-translate-y-2 hover:scale-[1.02]"
               onClick={() => {
                 setSelectedProject(project);
-                setPins(project.project_areas?.map((a: any) => ({x: a.x_percent, y: a.y_percent, name: a.name})) || []);
+                setPins(project.project_areas?.map((a: any) => ({
+                  x: a.x_percent, 
+                  y: a.y_percent, 
+                  name: a.name
+                })) || []);
               }}
             >
-              <h2 className="text-xl font-bold mb-2">{project.title}</h2>
-              <p className="text-gray-600 mb-4">{project.address}</p>
+              <div className="h-3 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-xl mb-6 group-hover:scale-x-110 transition-transform"></div>
+              <h2 className="text-2xl font-black mb-4 text-gray-900 leading-tight">{project.title}</h2>
+              <p className="text-lg text-gray-600 mb-6 leading-relaxed">{project.address}</p>
               <div className="flex items-center justify-between">
-                <span className="px-3 py-1 bg-emerald-100 text-emerald-800 rounded-full text-sm font-semibold">
-                  {project.status}
+                <span className="px-4 py-2 bg-gradient-to-r from-emerald-400 to-emerald-500 text-white rounded-2xl text-sm font-bold shadow-lg">
+                  {project.status || 'ACTIVE'}
                 </span>
-                <span className="text-sm text-gray-500">
+                <span className="text-xl font-bold text-blue-600 group-hover:text-blue-700">
                   {project.project_areas?.length || 0} zones
                 </span>
               </div>
@@ -72,57 +82,95 @@ export default function Inspections() {
           ))}
         </div>
 
-        {/* Map View */}
+        {/* Aerial Map View */}
         {selectedProject && (
-          <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-4xl mx-auto">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-3xl font-bold">{selectedProject.title}</h2>
+          <div className="bg-white/90 backdrop-blur-2xl rounded-3xl shadow-3xl border border-white/50 p-8 max-w-6xl mx-auto">
+            <div className="flex flex-col lg:flex-row gap-8 items-start lg:items-center mb-12">
+              <div className="flex-1">
+                <h2 className="text-4xl font-black mb-2 text-gray-900">{selectedProject.title}</h2>
+                <p className="text-xl text-gray-700">{selectedProject.address}</p>
+              </div>
               <button 
                 onClick={() => {setSelectedProject(null); setPins([]);}}
-                className="px-6 py-2 bg-gray-200 hover:bg-gray-300 rounded-xl font-semibold"
+                className="px-8 py-3 bg-gradient-to-r from-gray-200 to-gray-300 hover:from-gray-300 hover:to-gray-400 text-gray-800 rounded-2xl font-bold shadow-lg hover:shadow-xl transition-all whitespace-nowrap"
               >
-                ← Back
+                ← All Inspections
               </button>
             </div>
             
-            <div className="relative mb-8">
-              {/* Replace with real Google aerial when API ready */}
+            <div className="relative mb-12">
               <div 
-                className="w-full h-[500px] bg-gradient-to-br from-gray-300 to-gray-500 rounded-2xl cursor-crosshair border-4 border-dashed border-blue-300 shadow-2xl relative overflow-hidden"
+                className="w-full h-[500px] md:h-[700px] bg-cover bg-center bg-no-repeat rounded-3xl border-8 border-dashed border-blue-300/50 shadow-3xl relative overflow-hidden cursor-crosshair hover:border-blue-400/80 transition-all duration-300 hover:shadow-4xl group/map"
+                style={{ 
+                  backgroundImage: "url('https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80')" 
+                }}
                 onClick={handleImageClick}
-                style={{backgroundImage: 'url("https://via.placeholder.com/1200x500/8B4513/FFFFFF?text=Google+Aerial+View+-+Click+to+Pin")'}}
+                title="Click building areas to pin lighting fixtures"
               >
+                {/* Hover overlay */}
+                <div className="absolute inset-0 bg-black/0 group-hover/map:bg-black/10 transition-all flex items-center justify-center pointer-events-none">
+                  <div className="text-white text-3xl font-black opacity-0 group-hover/map:opacity-100 transition-all drop-shadow-2xl">
+                    👆 Click to Pin Lighting Zone
+                  </div>
+                </div>
+                
+                {/* Pins */}
                 {pins.map((pin, i) => (
                   <div
                     key={i}
-                    className="absolute w-12 h-12 bg-red-500 rounded-full shadow-lg flex items-center justify-center text-white font-bold text-xs border-4 border-white"
+                    className="absolute w-20 h-20 bg-gradient-to-br from-red-500 to-pink-600 border-6 border-white/80 rounded-3xl shadow-2xl flex items-center justify-center text-white font-black text-xl drop-shadow-3xl hover:scale-125 hover:rotate-12 transition-all duration-300 z-20 group/pin"
                     style={{
                       left: `${pin.x}%`,
                       top: `${pin.y}%`,
                       transform: 'translate(-50%, -50%)'
                     }}
                   >
-                    {pin.name.slice(0,2)}
+                    {pin.name.slice(0,3)}
+                    <div className="absolute -bottom-12 left-1/2 transform -translate-x-1/2 bg-white/90 text-gray-800 px-3 py-1 rounded-xl text-xs font-bold shadow-lg whitespace-nowrap min-w-[80px] text-center opacity-0 group-hover/pin:opacity-100 transition-all">
+                      {pin.name}
+                    </div>
+                    <div className="absolute -bottom-3 left-1/2 w-1 h-1 bg-white rounded-full shadow-lg transform -translate-x-1/2 scale-0 group-hover/pin:scale-100 transition-all"></div>
                   </div>
                 ))}
               </div>
-              <p className="text-center mt-4 text-gray-600 text-sm">
-                👆 Click anywhere on building to create lighting zone pin (X%, Y%)
+              <p className="text-center mt-6 text-lg font-semibold text-gray-700">
+                📍 Click building areas (parking lot, signage, walls) to create lighting zone pins
               </p>
             </div>
 
-            {/* Pins List */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {pins.map((pin, i) => (
-                <div key={i} className="p-4 bg-blue-50 rounded-xl border-l-4 border-blue-400">
-                  <h3 className="font-bold text-lg">{pin.name}</h3>
-                  <p className="text-blue-700">X: {pin.x}% | Y: {pin.y}%</p>
+            {/* Active Pins */}
+            {pins.length > 0 && (
+              <div>
+                <h3 className="text-2xl font-black mb-6 flex items-center">
+                  📋 Active Lighting Zones ({pins.length})
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                  {pins.map((pin, i) => (
+                    <div key={i} className="group p-6 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl border-2 border-blue-200 hover:border-blue-300 shadow-lg hover:shadow-xl transition-all hover:scale-[1.02]">
+                      <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center text-white font-black text-xl mb-4 mx-auto shadow-2xl">
+                        {pin.name.slice(0,3)}
+                      </div>
+                      <h4 className="font-black text-xl mb-2 text-gray-900 text-center">{pin.name}</h4>
+                      <div className="flex justify-center gap-4 text-sm text-blue-700 font-mono bg-white/50 px-4 py-2 rounded-xl">
+                        <span>X: {pin.x}%</span>
+                        <span>Y: {pin.y}%</span>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              </div>
+            )}
+          </div>
+        )}
+        
+        {!selectedProject && projects.length === 0 && (
+          <div className="text-center py-32">
+            <h2 className="text-3xl font-black mb-4 text-gray-600">No inspections</h2>
+            <p className="text-xl text-gray-500 mb-8">Create first inspection in Supabase</p>
           </div>
         )}
       </div>
     </div>
   );
 }
+
