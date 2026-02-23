@@ -292,7 +292,8 @@ const handleDelete = async (projectId: string) => {
               </button>
             </div>
             
-            <div className="relative mb-12 w-full h-[90vh] flex items-center justify-center">
+            <div className="relative mb-12 w-full h-[90vh] flex items-center justify-center" 
+     style={{ position: 'relative' }}>
               <div 
                 className="!h-[90vh] w-full max-w-6xl mx-auto bg-cover bg-center bg-no-repeat rounded-3xl border-8 border-dashed border-blue-300/50 shadow-3xl relative overflow-hidden cursor-crosshair hover:border-blue-400/80 transition-all duration-300 hover:shadow-4xl group/map"
                 style={{ 
@@ -321,7 +322,7 @@ const handleDelete = async (projectId: string) => {
                 
                 {/* Hover text */}
                 <div className="absolute inset-0 bg-black/0 group-hover/map:bg-black/20 transition-all flex items-center justify-center pointer-events-none rounded-3xl">
-                  <div className="text-white text-2xl font-black drop-shadow-2xl opacity-0 group-hover/map:opacity-100">
+                  <div className="text-white text-2xl font-bold drop-shadow-2xl opacity-0 group-hover/map:opacity-100">
                     👆 Click to add lighting zone pin
                   </div>
                 </div>
