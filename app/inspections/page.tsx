@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, ChangeEvent } from 'react';
 import { createClient } from '@/utils/supabase/client';
 
 export default function Inspections() {
@@ -11,7 +11,40 @@ export default function Inspections() {
   useEffect(() => {
     fetchProjects();
   }, []);
+ const [selectedFiles, setSelectedFiles] = useState<{[key: string]: File}>({});
+  const [uploadingId, setUploadingId] = useState<string | null>(null);
 
+  const handleFileChange = (projectId: string, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedFiles(prev => ({ ...prev, [projectId]: file }));
+    }
+  };
+
+  const handleUploadPhoto = async (project: any) => {
+    const file = selectedFiles[project.id];
+    if (!file) return;
+
+    setUploadingId(project.id);
+    try {
+      const formData = new FormData();
+      formData.append('photo', file);
+      formData.append('projectId', project.id);
+
+      const response = await fetch('/api/upload-photo', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (response.ok) {
+        window.location.reload();
+      }
+    } catch (error) {
+      console.error('Upload failed:', error);
+    } finally {
+      setUploadingId(null);
+    }
+  };
   const fetchProjects = async () => {
     const supabase = createClient();
     const { data } = await supabase
