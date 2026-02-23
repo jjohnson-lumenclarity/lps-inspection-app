@@ -355,3 +355,4 @@ const handleDelete = async (projectId: string) => {
     </div>
   );
 }
+export default Inspections;
