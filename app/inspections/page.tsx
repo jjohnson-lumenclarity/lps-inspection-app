@@ -1,73 +1,88 @@
-'use client';
-import { useState, useEffect } from 'react';
-import { createClient } from '@/utils/supabase/client';
+// ADD these state vars (after existing useState):
+const [showForm, setShowForm] = useState(false);
+const [formData, setFormData] = useState({
+  title: '',
+  address: '',
+  description: ''
+});
 
-export default function Inspections() {
-  const [projects, setProjects] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+// ADD this function (before return):
+const addInspection = async (e: React.FormEvent) => {
+  e.preventDefault();
+  const supabase = createClient();
+  const { error } = await supabase
+    .from('projects')
+    .insert([formData]);
+  if (!error) {
+    setShowForm(false);
+    fetchProjects(); // Refresh list
+  }
+};
 
-  useEffect(() => {
-    fetchProjects();
-  }, []);
-
-  const fetchProjects = async () => {
-    try {
-      const supabase = createClient();
-      const { data, error } = await supabase
-        .from('projects')
-        .select('*, project_areas(name, x_percent, y_percent)');
-      
-      if (error) throw error;
-      console.log('Data:', data); // Debug
-      setProjects(data || []);
-    } catch (err: any) {
-      console.error(err);
-      setError(err.message);
-    }
-    setLoading(false);
-  };
-
-  if (loading) return <div className="p-8 text-center text-xl">Loading...</div>;
-  if (error) return <div className="p-8 text-center text-red-500">Error: {error}</div>;
-
-  return (
-    <div className="p-8 max-w-6xl mx-auto">
-      <h1 className="text-4xl font-bold mb-8 text-gray-800">Lighting Inspections</h1>
-      
-      {projects.length === 0 ? (
-        <div className="text-center py-16 text-gray-500 text-xl">
-          No inspections yet
-        </div>
-      ) : (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {projects.map((project: any) => (
-            <div key={project.id} className="border rounded-xl p-6 shadow-md hover:shadow-xl transition-all bg-white">
-              <h2 className="text-2xl font-bold mb-2">{project.title}</h2>
-              <p className="text-gray-600 mb-3">{project.address}</p>
-              <span className="inline-block px-4 py-2 bg-blue-100 text-blue-800 rounded-full text-sm font-semibold">
-                {project.status?.toUpperCase()}
-              </span>
-              
-              <div className="mt-6 pt-4 border-t border-gray-100">
-                <h3 className="font-semibold mb-4 text-lg flex items-center">
-                  Lighting Zones <span className="ml-2 text-sm text-gray-500">({project.project_areas?.length || 0})</span>
-                </h3>
-                <div className="space-y-3 max-h-40 overflow-y-auto">
-                  {project.project_areas?.map((area: any) => (
-                    <div key={area.id} className="flex justify-between items-center p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl hover:shadow-inner">
-                      <span className="font-semibold text-gray-800">{area.name}</span>
-                      <div className="text-right">
-                        <div className="text-sm text-gray-500">{area.x_percent}% X | {area.y_percent}% Y</div>
-                      </div>
-                    </div>
-                  )) || <div className="p-4 text-gray-400 italic rounded-lg bg-gray-50">No lighting zones</div>}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+// REPLACE return (add + button + form):
+return (
+  <div className="p-8 max-w-6xl mx-auto">
+    <div className="flex justify-between items-center mb-8">
+      <h1 className="text-4xl font-bold text-gray-800">Lighting Inspections</h1>
+      <button 
+        onClick={() => setShowForm(true)}
+        className="bg-blue-600 text-white px-6 py-3 rounded-xl hover:bg-blue-700 font-semibold shadow-lg"
+      >
+        + New Inspection
+      </button>
     </div>
-  );
-}
+    
+    {/* NEW INSPECTION FORM */}
+    {showForm && (
+      <div className="bg-white p-8 rounded-2xl shadow-2xl border max-w-2xl mx-auto mb-8">
+        <h2 className="text-2xl font-bold mb-6">New Lighting Inspection</h2>
+        <form onSubmit={addInspection} className="space-y-4">
+          <input
+            type="text"
+            placeholder="Building Name"
+            value={formData.title}
+            onChange={(e) => setFormData({...formData, title: e.target.value})}
+            className="w-full p-4 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500"
+            required
+          />
+          <input
+            type="text"
+            placeholder="Full Address"
+            value={formData.address}
+            onChange={(e) => setFormData({...formData, address: e.target.value})}
+            className="w-full p-4 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500"
+            required
+          />
+          <textarea
+            placeholder="Description (optional)"
+            value={formData.description}
+            onChange={(e) => setFormData({...formData, description: e.target.value})}
+            rows={3}
+            className="w-full p-4 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500"
+          />
+          <div className="flex gap-3">
+            <button type="submit" className="flex-1 bg-green-600 text-white py-3 px-6 rounded-xl font-semibold hover:bg-green-700">
+              Save Inspection
+            </button>
+            <button 
+              type="button"
+              onClick={() => setShowForm(false)}
+              className="px-6 py-3 border border-gray-300 rounded-xl hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      </div>
+    )}
+    
+    {/* EXISTING LIST */}
+    {projects.length === 0 ? (
+      <div className="text-center py-16 text-gray-500 text-xl">
+        No inspections yet - click + to add first
+      </div>
+    ) : (
+      // ... your existing grid code
+    )}
+  </div>
+);
