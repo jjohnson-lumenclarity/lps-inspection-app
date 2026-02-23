@@ -22,27 +22,32 @@ const fetchProjects = async () => {
 };
 
 
-  const handleImageClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = Math.round(((e.clientX - rect.left) / rect.width) * 100);
-    const y = Math.round(((e.clientY - rect.top) / rect.height) * 100);
-    
-    const zoneName = prompt(`Lighting zone name?\n\nExamples: Parking Pole #3, Entry Signage, Wall Pack #7`) || 'New Zone';
-    if (!zoneName || zoneName === 'New Zone') return;
-    
-    const newPin = { x, y, name: zoneName };
-    const updatedPins = [...pins, newPin];
-    setPins(updatedPins);
-    
-    // Save to Supabase
-    const supabase = createClient();
-    supabase.from('project_areas').insert([{
-      project_id: selectedProject.id,
-      name: zoneName,
-      x_percent: x,
-      y_percent: y
-    }]);
-  };
+  const handleImageClick = async (e: React.MouseEvent<HTMLDivElement>) => {
+  const rect = e.currentTarget.getBoundingClientRect();
+  const x = Math.round(((e.clientX - rect.left) / rect.width) * 100);
+  const y = Math.round(((e.clientY - rect.top) / rect.height) * 100);
+  
+  const zoneName = prompt(`Lighting zone name?\nExamples: Parking Pole #3, Entry Signage, Wall Pack #7`) || '';
+  if (!zoneName) return;
+  
+  // OPTIMISTIC UI
+  const newPin = { x, y, name: zoneName };
+  setPins([...pins, newPin]);
+  
+  // SAVE TO SUPABASE
+  const supabase = createClient();
+  const { error } = await supabase.from('project_areas').insert([{
+    project_id: selectedProject.id,
+    name: zoneName,
+    x_percent: x,
+    y_percent: y
+  }]);
+  
+  if (error) {
+    alert('Save failed: ' + error.message);
+    setPins(pins); // Revert
+  }
+};
 
   if (loading) return <div className="p-8 text-center text-2xl font-bold text-gray-500">Loading inspections...</div>;
 
