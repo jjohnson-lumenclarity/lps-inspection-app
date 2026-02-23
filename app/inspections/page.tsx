@@ -292,32 +292,44 @@ const handleDelete = async (projectId: string) => {
               </button>
             </div>
             
-            <div className="relative mb-12 w-full h-[90vh] flex items-center justify-center" 
-     style={{ position: 'relative' }}>
-              <div 
-                className="!h-[90vh] w-full max-w-6xl mx-auto bg-cover bg-center bg-no-repeat rounded-3xl border-8 border-dashed border-blue-300/50 shadow-3xl relative overflow-hidden cursor-crosshair hover:border-blue-400/80 transition-all duration-300 hover:shadow-4xl group/map"
-                style={{ 
-                  backgroundImage: `url(${selectedProject?.photo_url || 'https://via.placeholder.com/1200x800/4F46E5/FFFFFF?text=Aerial+Site+Photo'})`,
-                  backgroundSize: 'cover',
-                  backgroundPosition: 'center',
-                  height: '90vh',
-                  minHeight: '600px'
-                }}
-                onClick={handleImageClick}
-              >
-                {/* Pins */}
-                {pins.map((pin, index) => (
-                  <div
-                    key={index}
-                    className="absolute w-20 h-20 bg-gradient-to-br from-red-400 to-pink-500 border-8 border-white/90 rounded-full shadow-2xl flex items-center justify-center text-white font-bold text-lg cursor-pointer hover:scale-110 transition-all z-20"
-                    style={{
-                      left: `${pin.x}%`,
-                      top: `${pin.y}%`,
-                      transform: 'translate(-50%, -50%)'
-                    }}
-                  >
-                    {pin.name.slice(0, 3).toUpperCase()}
-                  </div>
+           <div className="relative mb-12 w-full h-[90vh] flex items-center justify-center" style={{position: 'relative'}}>
+  <div 
+    className="h-[90vh] w-full max-w-6xl mx-auto bg-cover bg-center bg-no-repeat rounded-3xl border-8 border-dashed border-blue-300/50 shadow-3xl relative overflow-visible cursor-crosshair hover:border-blue-400/80 transition-all duration-300 hover:shadow-4xl group/map z-0"  <!-- 👈 overflow-visible + z-0 -->
+    style={{ 
+      backgroundImage: `url(${selectedProject?.photo_url || 'https://via.placeholder.com/1200x800/4F46E5/FFFFFF?text=Aerial+Site+Photo'})`,
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
+      height: '90vh',
+      minHeight: '600px'
+    }}
+    onClick={handleImageClick}
+  >
+    {/* Pins - z-50 now */}
+    {pins.map((pin, index) => (
+      <div
+        key={index}
+        className="absolute w-20 h-20 bg-gradient-to-br from-red-400 to-pink-500 border-8 border-white/90 rounded-full shadow-2xl flex items-center justify-center text-white font-bold text-lg cursor-pointer hover:scale-110 transition-all z-50"  <!-- 👈 z-50 -->
+        style={{
+          left: `${pin.x}%`,
+          top: `${pin.y}%`,
+          transform: 'translate(-50%, -50%)'
+        }}
+      >
+        {pin.name.slice(0, 3).toUpperCase()}
+      </div>
+    ))}
+    
+    {/* Hover text */}
+    <div className="absolute inset-0 bg-black/0 group-hover/map:bg-black/20 transition-all flex items-center justify-center pointer-events-none rounded-3xl z-10">
+      <div className="text-white text-2xl font-bold drop-shadow-2xl opacity-0 group-hover/map:opacity-100">
+        👆 Click to add lighting zone pin
+      </div>
+    </div>
+  </div>
+  <p className="text-center mt-6 text-lg font-semibold text-gray-700">
+    📍 Click building areas to create lighting zone pins ({pins.length} total)
+  </p>
+</div>
                 ))}
                 
                 {/* Hover text */}
