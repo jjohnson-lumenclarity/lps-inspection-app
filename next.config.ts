@@ -1,8 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   experimental: {
-    turbopack: false  // 👈 DISABLES TURBOPACK
+    turbo: {
+      enabled: false  // 👈 CORRECT KEY - DISABLES TURBOPACK
+    }
   }
 };
 
-export default nextConfig;
+module.exports = nextConfig;
