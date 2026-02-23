@@ -53,34 +53,52 @@ export default function Inspections() {
         </h1>
 
         {/* Project Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8 mb-16">
-          {projects.map((project: any) => (
-            <div 
-              key={project.id}
-              className="group bg-white/80 backdrop-blur-xl p-8 rounded-3xl shadow-2xl hover:shadow-3xl cursor-pointer border border-white/50 hover:border-blue-200/70 hover:bg-white transition-all duration-500 hover:-translate-y-2 hover:scale-[1.02]"
-              onClick={() => {
-                setSelectedProject(project);
-                setPins(project.project_areas?.map((a: any) => ({
-                  x: a.x_percent, 
-                  y: a.y_percent, 
-                  name: a.name
-                })) || []);
-              }}
-            >
-              <div className="h-3 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-xl mb-6 group-hover:scale-x-110 transition-transform"></div>
-              <h2 className="text-2xl font-black mb-4 text-gray-900 leading-tight">{project.title}</h2>
-              <p className="text-lg text-gray-600 mb-6 leading-relaxed">{project.address}</p>
-              <div className="flex items-center justify-between">
-                <span className="px-4 py-2 bg-gradient-to-r from-emerald-400 to-emerald-500 text-white rounded-2xl text-sm font-bold shadow-lg">
-                  {project.status || 'ACTIVE'}
-                </span>
-                <span className="text-xl font-bold text-blue-600 group-hover:text-blue-700">
-                  {project.project_areas?.length || 0} zones
-                </span>
-              </div>
-            </div>
-          ))}
+<div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8 mb-16">
+  {projects.map((project: any) => (
+    <div 
+      key={project.id}
+      className="group bg-gradient-to-b from-white to-gray-50/50 backdrop-blur-xl p-10 rounded-3xl shadow-2xl hover:shadow-3xl cursor-pointer border-2 border-white/50 hover:border-blue-200/70 hover:bg-white/90 transition-all duration-500 hover:-translate-y-3 hover:scale-[1.02] relative overflow-hidden"
+      onClick={() => {
+        setSelectedProject(project);
+        setPins(project.project_areas?.map((a: any) => ({
+          x: a.x_percent, 
+          y: a.y_percent, 
+          name: a.name
+        })) || []);
+      }}
+    >
+      {/* Gradient accent */}
+      <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-600 rounded-t-3xl"></div>
+      
+      {/* Content */}
+      <div className="relative z-10">
+        <h2 className="text-3xl font-black mb-6 text-gray-900 leading-tight line-clamp-2 group-hover:text-blue-700 transition-colors">
+          {project.title}
+        </h2>
+        <p className="text-xl text-gray-600 mb-8 leading-relaxed line-clamp-2">{project.address}</p>
+        
+        {/* Status & Count */}
+        <div className="flex items-center justify-between pb-6 mb-6 border-b-2 border-blue-50">
+          <span className="px-6 py-3 bg-gradient-to-r from-emerald-400 to-teal-500 text-white rounded-2xl text-lg font-bold shadow-xl hover:shadow-2xl transition-all group-hover:scale-105">
+            {project.status?.toUpperCase() || 'ACTIVE'}
+          </span>
+          <div className="text-2xl font-black text-blue-600 group-hover:text-blue-700 flex items-center gap-2">
+            <span>{project.project_areas?.length || 0}</span>
+            <span className="text-xl">zones</span>
+          </div>
         </div>
+        
+        {/* Hover prompt */}
+        <div className="opacity-0 group-hover:opacity-100 transition-all absolute inset-0 bg-black/10 flex items-center justify-center rounded-3xl pointer-events-none">
+          <div className="text-white text-2xl font-black drop-shadow-2xl text-center px-8 py-4 bg-white/20 backdrop-blur-xl rounded-2xl border-2 border-white/30">
+            🗺️ View Aerial + Pin Zones
+          </div>
+        </div>
+      </div>
+    </div>
+  ))}
+</div>
+
 
         {/* Aerial Map View */}
         {selectedProject && (
