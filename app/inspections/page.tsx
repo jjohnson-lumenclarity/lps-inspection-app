@@ -121,10 +121,7 @@ const fetchProjects = async () => {
     </div>
   ))}
 </div>
-
-
-
-
+        
         {/* Aerial Map View */}
         {selectedProject && (
           <div className="bg-white/90 backdrop-blur-2xl rounded-3xl shadow-3xl border border-white/50 p-8 max-w-6xl mx-auto">
@@ -153,7 +150,26 @@ const fetchProjects = async () => {
   }}
   onClick={handleImageClick}
 >
+ {/* ADD THIS PIN LOOP */}
+  {pins.map((pin, index) => (
+    <div
+      key={index}
+      className="absolute w-20 h-20 bg-gradient-to-br from-red-400 to-pink-500 border-8 border-white/90 rounded-full shadow-2xl flex items-center justify-center text-white font-bold text-lg cursor-pointer hover:scale-110 transition-all z-20 group/pin"
+      style={{
+        left: `${pin.x}%`,
+        top: `${pin.y}%`,
+        transform: 'translate(-50%, -50%)'
+      }}
+    >
+      {pin.name.slice(0, 3).toUpperCase()}
+    </div>
+  ))}
 
+  {/* Hover text */}
+  <div className="absolute inset-0 bg-black/0 group-hover/map:bg-black/20 transition-all flex items-center justify-center pointer-events-none rounded-3xl">
+    <div className="text-white text-2xl font-black drop-shadow-2xl opacity-0 group-hover/map:opacity-100">
+      👆 Click to add lighting zone pin
+    </div>
                 {/* Hover overlay */}
                 <div className="absolute inset-0 bg-black/0 group-hover/map:bg-black/10 transition-all flex items-center justify-center pointer-events-none">
                   <div className="text-white text-3xl font-black opacity-0 group-hover/map:opacity-100 transition-all drop-shadow-2xl">
