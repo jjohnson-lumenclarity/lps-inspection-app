@@ -56,31 +56,168 @@ export default function Inspections() {
         </h1>
 
         {/* Project Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-16">
-          {projects.map((project: any) => (
-            <div 
-              key={project.id}
-              className="group bg-white hover:bg-gray-50 border border-gray-200 hover:border-blue-300 rounded-2xl p-6 hover:shadow-lg transition-all duration-300 cursor-pointer"
-              onClick={() => {
-                setSelectedProject(project);
-                setPins(project.project_areas?.map((a: any) => ({
-                  x: a.x_percent, 
-                  y: a.y_percent, 
-                  name: a.name
-                })) || []);
-              }}
-            >
-              <h2 className="text-xl font-bold mb-2">{project.title}</h2>
-              <p className="text-gray-600 mb-4">{project.address}</p>
-              <span className="px-3 py-1 bg-emerald-400 text-white rounded-lg text-sm font-bold">
-                {project.status?.toUpperCase() || 'ACTIVE'}
-              </span>
-              <div className="text-2xl font-bold text-blue-600 mt-2">
-                {project.project_areas?.length || 0} zones
-              </div>
-            </div>
-          ))}
+      {/* WORKING DASHBOARD CARDS - INLINE STYLES */}
+<div
+  style={{
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))',
+    gap: '24px',
+  }}
+>
+  {projects.length === 0 ? (
+    <p
+      style={{
+        gridColumn: '1 / -1',
+        textAlign: 'center',
+        color: '#6B7280',
+        fontSize: '18px',
+      }}
+    >
+      No projects yet. Add your first project above!
+    </p>
+  ) : (
+    projects.map((project) => (
+      <div
+        key={project.id}
+        style={{
+          padding: '25px',
+          border: '1px solid #E5E7EB',
+          borderRadius: '12px',
+          background: 'white',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+        }}
+      >
+        <h3
+          style={{
+            margin: '0 0 8px 0',
+            color: '#1F2937',
+            fontSize: '20px',
+          }}
+        >
+          {project.title}
+        </h3>
+        <p style={{ margin: '0 0 8px 0', color: '#6B7280' }}>
+          {project.description}
+        </p>
+        <p
+          style={{
+            margin: '0 0 12px 0',
+            color: '#374151',
+            fontSize: '14px',
+          }}
+        >
+          📍 {project.address}
+        </p>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            marginBottom: '16px',
+          }}
+        >
+          <span
+            style={{
+              padding: '4px 12px',
+              background:
+                project.status === 'Active'
+                  ? '#10B981'
+                  : project.status === 'In Progress'
+                  ? '#F59E0B'
+                  : '#6B7280',
+              color: 'white',
+              borderRadius: '20px',
+              fontSize: '14px',
+              fontWeight: '500',
+            }}
+          >
+            {project.status}
+          </span>
         </div>
+
+        {/* Photo section */}
+        {project.photo_url && (
+          <div style={{ marginBottom: '12px' }}>
+            <img
+              src={project.photo_url}
+              alt="Project"
+              style={{
+                width: '100%',
+                maxHeight: '200px',
+                objectFit: 'cover',
+                borderRadius: '8px',
+              }}
+            />
+          </div>
+        )}
+
+        <div style={{ marginBottom: '12px' }}>
+          <input
+            type="file"
+            accept="image/*"
+            onChange={(e) => handleFileChange(project.id, e)}
+          />
+          <button
+            onClick={() => handleUploadPhoto(project)}
+            disabled={!selectedFiles[project.id] || uploadingId === project.id}
+            style={{
+              marginTop: '8px',
+              padding: '8px 16px',
+              background:
+                !selectedFiles[project.id] || uploadingId === project.id
+                  ? '#9CA3AF'
+                  : '#10B981',
+              color: 'white',
+              border: 'none',
+              borderRadius: '6px',
+              fontSize: '14px',
+              fontWeight: '500',
+              cursor:
+                !selectedFiles[project.id] || uploadingId === project.id
+                  ? 'not-allowed'
+                  : 'pointer',
+            }}
+          >
+            {uploadingId === project.id ? 'Uploading…' : 'Upload Photo'}
+          </button>
+        </div>
+
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button
+            onClick={() => handleEdit(project)}
+            style={{
+              padding: '8px 16px',
+              background: '#3B82F6',
+              color: 'white',
+              border: 'none',
+              borderRadius: '6px',
+              fontSize: '14px',
+              fontWeight: '500',
+              cursor: 'pointer',
+            }}
+          >
+            Edit
+          </button>
+          <button
+            onClick={() => handleDelete(project.id)}
+            style={{
+              padding: '8px 16px',
+              background: '#EF4444',
+              color: 'white',
+              border: 'none',
+              borderRadius: '6px',
+              fontSize: '14px',
+              fontWeight: '500',
+              cursor: 'pointer',
+            }}
+          >
+            Delete
+          </button>
+        </div>
+      </div>
+    ))
+  )}
+</div>
         
         {/* Aerial Map View */}
         {selectedProject && (
