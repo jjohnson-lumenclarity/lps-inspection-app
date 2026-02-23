@@ -13,7 +13,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className="font-['Inter'] antialiased bg-gradient-to-br from-slate-50 to-blue-50">
+      <body className="font-['Inter'] antialiased">
         {children}
       </body>
     </html>
