@@ -294,7 +294,7 @@ const handleDelete = async (projectId: string) => {
             
            <div className="relative mb-12 w-full h-[90vh] flex items-center justify-center" style={{position: 'relative'}}>
   <div 
-    className="h-[90vh] w-full max-w-6xl mx-auto bg-cover bg-center bg-no-repeat rounded-3xl border-8 border-dashed border-blue-300/50 shadow-3xl relative overflow-visible cursor-crosshair hover:border-blue-400/80 transition-all duration-300 hover:shadow-4xl group/map z-0"  <!-- 👈 overflow-visible + z-0 -->
+    className="h-[90vh] w-full max-w-6xl mx-auto bg-cover bg-center bg-no-repeat rounded-3xl border-8 border-dashed border-blue-300/50 shadow-3xl relative overflow-visible cursor-crosshair hover:border-blue-400/80 transition-all duration-300 hover:shadow-4xl group/map z-0"
     style={{ 
       backgroundImage: `url(${selectedProject?.photo_url || 'https://via.placeholder.com/1200x800/4F46E5/FFFFFF?text=Aerial+Site+Photo'})`,
       backgroundSize: 'cover',
@@ -308,7 +308,7 @@ const handleDelete = async (projectId: string) => {
     {pins.map((pin, index) => (
       <div
         key={index}
-        className="absolute w-20 h-20 bg-gradient-to-br from-red-400 to-pink-500 border-8 border-white/90 rounded-full shadow-2xl flex items-center justify-center text-white font-bold text-lg cursor-pointer hover:scale-110 transition-all z-50"  <!-- 👈 z-50 -->
+        className="absolute w-20 h-20 bg-gradient-to-br from-red-400 to-pink-500 border-8 border-white/90 rounded-full shadow-2xl flex items-center justify-center text-white font-bold text-lg cursor-pointer hover:scale-110 transition-all z-50"
         style={{
           left: `${pin.x}%`,
           top: `${pin.y}%`,
