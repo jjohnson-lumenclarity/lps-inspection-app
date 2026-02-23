@@ -132,8 +132,18 @@ const handleDelete = async (projectId: string) => {
           borderRadius: '12px',
           background: 'white',
           boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
-        }}
-      >
+        cursor: 'pointer',
+      transition: 'box-shadow 0.3s',
+    }}
+    onClick={() => {
+      setSelectedProject(project);
+      setPins(project.project_areas?.map((a: any) => ({
+        x: a.x_percent, 
+        y: a.y_percent, 
+        name: a.name
+      })) || []);
+    }}
+  >
         <h3
           style={{
             margin: '0 0 8px 0',
