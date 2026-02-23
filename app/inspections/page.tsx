@@ -116,13 +116,18 @@ export default function Inspections() {
               </button>
             </div>
             
-            <div className="relative mb-12">
-              <div 
-  className="w-full h-screen max-h-[90vh] bg-cover bg-center bg-no-repeat rounded-3xl border-8 border-dashed border-blue-300/50 shadow-3xl relative overflow-hidden cursor-crosshair hover:border-blue-400/80 transition-all duration-300 hover:shadow-4xl group/map min-h-[600px]"
-  style={{ 
-    backgroundImage: "url('https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80')" 
-  }}
->
+       <div className="relative mb-12 w-full h-[90vh] flex items-center justify-center">
+  <div 
+    className="!h-[90vh] w-full max-w-6xl mx-auto bg-cover bg-center bg-no-repeat rounded-3xl border-8 border-dashed border-blue-300/50 shadow-3xl relative overflow-hidden cursor-crosshair hover:border-blue-400/80 transition-all duration-300 hover:shadow-4xl group/map"
+    style={{ 
+      backgroundImage: "url('https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80')",
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
+      height: '90vh',  // FORCE viewport height
+      minHeight: '600px'
+    }}
+    onClick={handleImageClick}
+  >
                 {/* Hover overlay */}
                 <div className="absolute inset-0 bg-black/0 group-hover/map:bg-black/10 transition-all flex items-center justify-center pointer-events-none">
                   <div className="text-white text-3xl font-black opacity-0 group-hover/map:opacity-100 transition-all drop-shadow-2xl">
