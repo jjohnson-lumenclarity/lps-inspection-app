@@ -330,7 +330,7 @@ const handleDelete = async (projectId: string) => {
     📍 Click building areas to create lighting zone pins ({pins.length} total)
   </p>
 </div>
-                ))}
+                )}
                 
                 {/* Hover text */}
                 <div className="absolute inset-0 bg-black/0 group-hover/map:bg-black/20 transition-all flex items-center justify-center pointer-events-none rounded-3xl">
