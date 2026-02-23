@@ -12,14 +12,15 @@ export default function Inspections() {
     fetchProjects();
   }, []);
 
-  const fetchProjects = async () => {
-    const supabase = createClient();
-    const { data } = await supabase
-      .from('projects')
-      .select('*, project_areas(name, x_percent, y_percent)');
-    setProjects(data || []);
-    setLoading(false);
-  };
+const fetchProjects = async () => {
+  const supabase = createClient();
+  const { data } = await supabase
+    .from('projects')
+    .select('*, project_areas(name, x_percent, y_percent), photo_url');  // ✅ Added photo_url
+  setProjects(data || []);
+  setLoading(false);
+};
+
 
   const handleImageClick = (e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
