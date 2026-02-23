@@ -51,37 +51,36 @@ export default function Inspections() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 sm:p-8">
       <div className="max-w-7xl mx-auto">
-      <h1 style={{ 
-  fontSize: '3rem', 
-  fontWeight: 'bold', 
-  textAlign: 'center', 
-  background: 'linear-gradient(90deg, #1e293b, #475569, #334155)', 
-  WebkitBackgroundClip: 'text', 
-  WebkitTextFillColor: 'transparent',
-  marginBottom: '3rem'
-}}>
-  Guardian Lightning Inspection
-</h1>
-
+        <h1 className="text-5xl font-black mb-12 text-center bg-gradient-to-r from-gray-800 via-gray-600 to-slate-800 bg-clip-text text-transparent drop-shadow-2xl">
+          Guardian Lightning Inspection - Current Projects
+        </h1>
 
         {/* Project Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-16 p-8 bg-white rounded-3xl shadow-xl">
-  {projects.map((project) => (
-    <div key={project.id} className="bg-gradient-to-b from-white to-blue-50 border-2 border-blue-100 rounded-2xl p-8 hover:shadow-2xl cursor-pointer hover:bg-white transition-all hover:scale-105">
-      <h2 className="text-2xl font-bold mb-4 text-gray-900">{project.title}</h2>
-      <p className="text-lg text-gray-600 mb-6">{project.address}</p>
-      <div className="flex justify-between items-center">
-        <span className="px-4 py-2 bg-green-400 text-white rounded-xl font-bold text-lg">
-          {project.status || 'ACTIVE'}
-        </span>
-        <div className="text-3xl font-black text-blue-600">
-          {project.project_areas?.length || 0}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-16">
+          {projects.map((project: any) => (
+            <div 
+              key={project.id}
+              className="group bg-white hover:bg-gray-50 border border-gray-200 hover:border-blue-300 rounded-2xl p-6 hover:shadow-lg transition-all duration-300 cursor-pointer"
+              onClick={() => {
+                setSelectedProject(project);
+                setPins(project.project_areas?.map((a: any) => ({
+                  x: a.x_percent, 
+                  y: a.y_percent, 
+                  name: a.name
+                })) || []);
+              }}
+            >
+              <h2 className="text-xl font-bold mb-2">{project.title}</h2>
+              <p className="text-gray-600 mb-4">{project.address}</p>
+              <span className="px-3 py-1 bg-emerald-400 text-white rounded-lg text-sm font-bold">
+                {project.status?.toUpperCase() || 'ACTIVE'}
+              </span>
+              <div className="text-2xl font-bold text-blue-600 mt-2">
+                {project.project_areas?.length || 0} zones
+              </div>
+            </div>
+          ))}
         </div>
-      </div>
-    </div>
-  ))}
-</div>
-
         
         {/* Aerial Map View */}
         {selectedProject && (
@@ -112,20 +111,19 @@ export default function Inspections() {
                 onClick={handleImageClick}
               >
                 {/* Pins */}
-               {pins.map((pin, index) => (
-  <div
-    key={index}
-    className="absolute w-20 h-20 bg-red-500 border-8 border-white rounded-full shadow-2xl flex items-center justify-center text-white font-bold text-lg z-[999] pointer-events-none"
-    style={{
-      left: `${pin.x}%`,
-      top: `${pin.y}%`,
-      transform: 'translate(-50%, -50%)'
-    }}
-  >
-    {pin.name.slice(0, 3)}
-  </div>
-))}
-
+                {pins.map((pin, index) => (
+                  <div
+                    key={index}
+                    className="absolute w-20 h-20 bg-gradient-to-br from-red-400 to-pink-500 border-8 border-white/90 rounded-full shadow-2xl flex items-center justify-center text-white font-bold text-lg cursor-pointer hover:scale-110 transition-all z-20"
+                    style={{
+                      left: `${pin.x}%`,
+                      top: `${pin.y}%`,
+                      transform: 'translate(-50%, -50%)'
+                    }}
+                  >
+                    {pin.name.slice(0, 3).toUpperCase()}
+                  </div>
+                ))}
                 
                 {/* Hover text */}
                 <div className="absolute inset-0 bg-black/0 group-hover/map:bg-black/20 transition-all flex items-center justify-center pointer-events-none rounded-3xl">
