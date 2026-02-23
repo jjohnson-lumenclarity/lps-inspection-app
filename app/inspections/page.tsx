@@ -51,9 +51,18 @@ export default function Inspections() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 sm:p-8">
       <div className="max-w-7xl mx-auto">
-        <h1 className="text-5xl font-black mb-12 text-center bg-gradient-to-r from-gray-800 via-gray-600 to-slate-800 bg-clip-text text-transparent drop-shadow-2xl">
-          Commercial lighting inspections
-        </h1>
+      <h1 style={{ 
+  fontSize: '3rem', 
+  fontWeight: 'bold', 
+  textAlign: 'center', 
+  background: 'linear-gradient(90deg, #1e293b, #475569, #334155)', 
+  WebkitBackgroundClip: 'text', 
+  WebkitTextFillColor: 'transparent',
+  marginBottom: '3rem'
+}}>
+  Guardian Lightning Inspection
+</h1>
+
 
         {/* Project Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-16 p-8 bg-white rounded-3xl shadow-xl">
