@@ -347,7 +347,7 @@ export default function Dashboard() {
               gridColumn: '1 / -1',
               textAlign: 'center',
               color: '#6B7280',
-              fontSize: '50px',
+              fontSize: '18px',
             }}
           >
             No projects yet. Add your first project above!
