@@ -1,3 +1,14 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  body { @apply bg-gray-50 antialiased; }
+  h1 { @apply text-4xl font-black; }
+}
+
+@layer components {
+  .card-hover { 
+    @apply group bg-white hover:bg-gradient-to-br hover:from-blue-50 hover:to-indigo-50 border hover:border-blue-300 rounded-2xl p-6 hover:shadow-xl transition-all duration-300 cursor-pointer hover:-translate-y-1;
+  }
+}
