@@ -56,31 +56,23 @@ export default function Inspections() {
         </h1>
 
         {/* Project Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-16">
-          {projects.map((project: any) => (
-            <div 
-              key={project.id}
-              className="group bg-white hover:bg-gray-50 border border-gray-200 hover:border-blue-300 rounded-2xl p-6 hover:shadow-lg transition-all duration-300 cursor-pointer"
-              onClick={() => {
-                setSelectedProject(project);
-                setPins(project.project_areas?.map((a: any) => ({
-                  x: a.x_percent, 
-                  y: a.y_percent, 
-                  name: a.name
-                })) || []);
-              }}
-            >
-              <h2 className="text-xl font-bold mb-2">{project.title}</h2>
-              <p className="text-gray-600 mb-4">{project.address}</p>
-              <span className="px-3 py-1 bg-emerald-400 text-white rounded-lg text-sm font-bold">
-                {project.status?.toUpperCase() || 'ACTIVE'}
-              </span>
-              <div className="text-2xl font-bold text-blue-600 mt-2">
-                {project.project_areas?.length || 0} zones
-              </div>
-            </div>
-          ))}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-16 p-8 bg-white rounded-3xl shadow-xl">
+  {projects.map((project) => (
+    <div key={project.id} className="bg-gradient-to-b from-white to-blue-50 border-2 border-blue-100 rounded-2xl p-8 hover:shadow-2xl cursor-pointer hover:bg-white transition-all hover:scale-105">
+      <h2 className="text-2xl font-bold mb-4 text-gray-900">{project.title}</h2>
+      <p className="text-lg text-gray-600 mb-6">{project.address}</p>
+      <div className="flex justify-between items-center">
+        <span className="px-4 py-2 bg-green-400 text-white rounded-xl font-bold text-lg">
+          {project.status || 'ACTIVE'}
+        </span>
+        <div className="text-3xl font-black text-blue-600">
+          {project.project_areas?.length || 0}
         </div>
+      </div>
+    </div>
+  ))}
+</div>
+
         
         {/* Aerial Map View */}
         {selectedProject && (
