@@ -52,7 +52,7 @@ export default function Inspections() {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 sm:p-8">
       <div className="max-w-7xl mx-auto">
         <h1 className="text-5xl font-black mb-12 text-center bg-gradient-to-r from-gray-800 via-gray-600 to-slate-800 bg-clip-text text-transparent drop-shadow-2xl">
-          Guardian Lightning Inspection - Current Projects
+          Commercial lighting inspections
         </h1>
 
         {/* Project Cards */}
