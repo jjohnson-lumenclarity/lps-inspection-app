@@ -102,7 +102,7 @@ export default function Inspections() {
               <div 
                 className="!h-[90vh] w-full max-w-6xl mx-auto bg-cover bg-center bg-no-repeat rounded-3xl border-8 border-dashed border-blue-300/50 shadow-3xl relative overflow-hidden cursor-crosshair hover:border-blue-400/80 transition-all duration-300 hover:shadow-4xl group/map"
                 style={{ 
-                  backgroundImage: `url(${selectedProject.photo_url || 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80')`,
+                  backgroundImage: `url(${selectedProject?.photo_url || 'https://via.placeholder.com/1200x800/4F46E5/FFFFFF?text=Aerial+Site+Photo'})`,
                   backgroundSize: 'cover',
                   backgroundPosition: 'center',
                   height: '90vh',
