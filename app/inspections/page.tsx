@@ -80,8 +80,15 @@ export default function Inspections() {
     if (!zoneName) return;
     
     const newPin = { x, y, name: zoneName };
-    setPins(prev => [...prev, newPin]);
+console.log('ADDING PIN:', newPin);
+  console.log('BEFORE setPins, current pins:', pins);
+  console.log('selectedProject.id:', selectedProject?.id);
     
+    setPins(prev => [...prev, newPin]);
+      console.log('AFTER setPins:', newPins);
+    return newPins;
+  });
+  
     const supabase = createClient();
     const { error } = await supabase.from('project_areas').insert([{
       project_id: selectedProject.id,
