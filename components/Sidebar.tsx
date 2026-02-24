@@ -89,7 +89,7 @@ export default function Sidebar() {
             ⚡
           </div>
           <p style={{ color: 'white', fontWeight: '800', fontSize: '18px', margin: 0 }}>
-            Guardian LPS
+            Guardian Lightning Protection
           </p>
           <p style={{ color: '#9CA3AF', fontSize: '13px', margin: '4px 0 0 0' }}>
             Inspection System
