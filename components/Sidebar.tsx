@@ -1,9 +1,11 @@
 'use client';
 import { useState } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 
 export default function Sidebar() {
   const [open, setOpen] = useState(false);
+  const currentPath = usePathname();
 
   const menuItems = [
     { icon: '👤', label: 'Login', href: '/login' },
