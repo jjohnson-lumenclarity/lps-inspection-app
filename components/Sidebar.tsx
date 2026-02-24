@@ -20,20 +20,21 @@ export default function Sidebar() {
     <>
       <button
         onClick={() => setOpen(!open)}
-   style={{
+ style={{
   display: 'flex',
   alignItems: 'center',
   gap: '14px',
   padding: '14px 16px',
   borderRadius: '12px',
-  marginBottom: '4px',
-  color: currentPath === item.href ? '#ffffff' : '#f9fafb',
-  background: currentPath === item.href ? '#3b82f6' : 'transparent',
-  textDecoration: 'none',
+  color: '#f9fafb',
+  background: 'transparent',
+  border: 'none',
+  cursor: 'pointer',
+  width: '100%',
+  textAlign: 'left',
   fontSize: '16px',
   fontWeight: '600',
-  fontFamily: 'Inter, -apple-system, sans-serif',
-  transition: 'all 0.2s',
+  fontFamily: 'Inter, sans-serif',
 }}
 
       >
