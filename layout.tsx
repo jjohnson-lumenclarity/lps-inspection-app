@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
-import './globals.css'  // ✅ Creates demand for globals.css
+import './globals.css'
+import Sidebar from '@/app/components/Sidebar'
 
 export const metadata: Metadata = {
   title: 'LPS Inspection App',
@@ -25,3 +26,4 @@ export default function RootLayout({
     </html>
   )
 }
+
