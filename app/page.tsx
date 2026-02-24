@@ -32,10 +32,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(false);
   const [uploadingId, setUploadingId] = useState<string | null>(null);
   const [selectedFiles, setSelectedFiles] = useState<Record<string, File | null>>({});
-<div style={{padding: '20px', border: '5px solid red'}}>
-      <h1>TEST - RED BOX HERE</h1>
-      Dashboard content...
-    </div>
+  
   useEffect(() => {
     fetchProjects();
   }, []);
