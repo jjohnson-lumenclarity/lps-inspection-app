@@ -351,35 +351,35 @@ const { error } = await supabase.from('project_areas').insert([{
     </div>
   </div>
 </div>
-
               <p className="text-center mt-6 text-lg font-semibold text-gray-700">
-                📍 Click building areas to create lighting zone pins ({pins.length} total)
-              </p>
-            </div>
+  Click building areas to create lighting zone pins ({pins.length} total)
+</p>
 
-            {pins.length > 0 && (
-              <div>
-                <h3 className="text-2xl font-black mb-6 flex items-center">
-                  📋 Active Lighting Zones ({pins.length})
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                  {pins.map((pin, i) => (
-                    <div key={i} className="p-6 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl border-2 border-blue-200 shadow-lg hover:shadow-xl transition-all hover:scale-[1.02]">
-                      <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center text-white font-black text-xl mb-4 mx-auto shadow-2xl">
-                        {pin.name.slice(0,3)}
-                      </div>
-                      <h4 className="font-black text-xl mb-2 text-gray-900 text-center">{pin.name}</h4>
-                      <div className="flex justify-center gap-4 text-sm text-blue-700 font-mono bg-white/50 px-4 py-2 rounded-xl">
-                        <span>X: {pin.x}%</span>
-                        <span>Y: {pin.y}%</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+{pins.length > 0 && (
+  <div>
+    <h3 className="text-2xl font-black mb-6 flex items-center gap-2">
+      📋 Active Lighting Zones ({pins.length})
+    </h3>
+    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+      {pins.map((pin, i) => (
+        <div
+          key={i}
+          className="p-6 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl border-2 border-blue-200 shadow-lg hover:shadow-xl transition-all hover:scale-102"
+        >
+          <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center text-white font-black text-xl mb-4 mx-auto shadow-2xl">
+            {pin.name.slice(0, 3)}
           </div>
-        )}
+          <h4 className="font-black text-xl mb-2 text-gray-900 text-center">{pin.name}</h4>
+          <div className="flex justify-center gap-4 text-sm text-blue-700 font-mono bg-white/50 px-4 py-2 rounded-xl">
+            <span>X: {pin.x_percent}%</span>
+            <span>Y: {pin.y_percent}%</span>
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+)}
+
 
         {!selectedProject && projects.length === 0 && (
           <div className="text-center py-32">
