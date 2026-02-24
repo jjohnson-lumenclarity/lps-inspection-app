@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+const supabase = createClient();
 
 export default function InspectionsPage() {
   const [projects, setProjects] = useState<any[]>([]);
@@ -16,7 +16,7 @@ export default function InspectionsPage() {
   }, []);
 
 const fetchProjects = async () => {
-  const supabase = createClientComponentClient();
+  const supabase = createClient();
   const { data } = await supabase
     .from('projects')
     .select(`
@@ -82,7 +82,7 @@ const fetchProjects = async () => {
   if (!zoneName) return;
   const newPin = { x, y, name: zoneName };
   setPins((prev) => [...prev, newPin]);
-  const supabase = createClientComponentClient();
+  const supabase = createClient();
   const { error } = await supabase.from('projectareas').insert({
     projectid: selectedProject.id,
     name: zoneName,
