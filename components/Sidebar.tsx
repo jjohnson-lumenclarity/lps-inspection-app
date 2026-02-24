@@ -20,21 +20,22 @@ export default function Sidebar() {
     <>
       <button
         onClick={() => setOpen(!open)}
-        style={{
+   style={{
   display: 'flex',
   alignItems: 'center',
   gap: '14px',
   padding: '14px 16px',
   borderRadius: '12px',
   marginBottom: '4px',
-  color: isActive ? '#ffffff' : '#f9fafb',
-  background: isActive ? '#3b82f6' : 'transparent',
+  color: currentPath === item.href ? '#ffffff' : '#f9fafb',
+  background: currentPath === item.href ? '#3b82f6' : 'transparent',
   textDecoration: 'none',
   fontSize: '16px',
   fontWeight: '600',
-  fontFamily: 'Inter, -apple-system, sans-serif',  // ← MATCHES APP
+  fontFamily: 'Inter, -apple-system, sans-serif',
   transition: 'all 0.2s',
 }}
+
       >
         {open ? '✕' : '☰'}
       </button>
@@ -104,26 +105,26 @@ export default function Sidebar() {
       href={item.href}
       onClick={() => setOpen(false)}
       style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '14px',
-        padding: '14px 16px',
-        borderRadius: '12px',
-        marginBottom: '4px',
-        color: isActive ? '#ffffff' : '#f9fafb',
-        background: isActive ? '#3b82f6' : 'transparent',
-        textDecoration: 'none',
-        fontSize: '16px',
-        fontWeight: '600',
-        fontFamily: 'Inter, -apple-system, sans-serif',
-        transition: 'all 0.2s',
-      }}
+  display: 'flex',
+  alignItems: 'center',
+  gap: '14px',
+  padding: '14px 16px',
+  borderRadius: '12px',
+  marginBottom: '4px',
+  color: currentPath === item.href ? '#ffffff' : '#f9fafb',
+  background: currentPath === item.href ? '#3b82f6' : 'transparent',
+  textDecoration: 'none',
+  fontSize: '16px',
+  fontWeight: '600',
+  fontFamily: 'Inter, -apple-system, sans-serif',
+  transition: 'all 0.2s',
+}}
       onMouseEnter={(e) => {
-        if (!isActive) e.currentTarget.style.background = '#374151';
-      }}
-      onMouseLeave={(e) => {
-        if (!isActive) e.currentTarget.style.background = 'transparent';
-      }}
+  if (currentPath !== item.href) e.currentTarget.style.background = '#374151';
+}}
+onMouseLeave={(e) => {
+  if (currentPath !== item.href) e.currentTarget.style.background = 'transparent';
+}}
     >
       <span style={{ fontSize: '20px' }}>{item.icon}</span>
       {item.label}
