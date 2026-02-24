@@ -309,7 +309,6 @@ const { error } = await supabase.from('project_areas').insert([{
                 ← All Inspections
               </button>
             </div>
-            
            <div className="relative mb-12 w-full h-[90vh] flex items-center justify-center" style={{position: 'relative', zIndex: 1}}>
   <div
     className="absolute inset-0 bg-cover bg-center bg-no-repeat rounded-3xl border-8 border-dashed border-blue-300/50 shadow-3xl cursor-crosshair hover:border-blue-400/80 transition-all duration-300 hover:shadow-4xl group/map"
@@ -342,7 +341,6 @@ const { error } = await supabase.from('project_areas').insert([{
         </div>
       ))}
     </div>
-    
     {/* Hover overlay */}
     <div className="absolute inset-0 bg-black/0 group-hover/map:bg-black/20 transition-all flex items-center justify-center pointer-events-none rounded-3xl z-10">
       <div className="text-white text-2xl font-bold drop-shadow-2xl opacity-0 group-hover/map:opacity-100">
@@ -354,7 +352,6 @@ const { error } = await supabase.from('project_areas').insert([{
               <p className="text-center mt-6 text-lg font-semibold text-gray-700">
   Click building areas to create lighting zone pins ({pins.length} total)
 </p>
-
 {pins.length > 0 && (
   <div>
     <h3 className="text-2xl font-black mb-6 flex items-center gap-2">
@@ -379,9 +376,7 @@ const { error } = await supabase.from('project_areas').insert([{
     </div>
   </div>
 )}
-
-
-        {!selectedProject && projects.length === 0 && (
+ {!selectedProject && projects.length === 0 && (
           <div className="text-center py-32">
             <h2 className="text-3xl font-black mb-4 text-gray-600">No inspections</h2>
             <p className="text-xl text-gray-500 mb-8">Create first inspection in Supabase</p>
@@ -391,3 +386,4 @@ const { error } = await supabase.from('project_areas').insert([{
     </div>
   );
 }
+export default InspectionsPage;
