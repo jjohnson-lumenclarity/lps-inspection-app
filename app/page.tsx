@@ -19,6 +19,15 @@ interface Project {
   photo_url?: string | null;
 }
 
+export default function Home() {
+  return (
+    <div style={{padding: '20px', border: '5px solid red'}}>
+      <h1>TEST - RED BOX HERE</h1>
+      Dashboard content...
+    </div>
+  );
+}
+
 export default function Dashboard() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [newProject, setNewProject] = useState({
