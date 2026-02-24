@@ -300,6 +300,16 @@ const { error } = await supabase.from('project_areas').insert([{
                 <h2 className="text-4xl font-black mb-2 text-gray-900">
                   {selectedProject.title} ({pins.length} zones)
                 </h2>
+                <button 
+  onClick={() => {
+    console.log('🔴 DEBUG:', { pins, pinsLength: pins.length, selectedProjectId: selectedProject?.id });
+    alert(`Pins: ${pins.length}\nFirst pin: ${pins[0]?.name || 'none'}`);
+  }}
+  className="ml-4 px-4 py-2 bg-red-500 text-white rounded font-bold"
+>
+  🔴 Debug Pins ({pins.length})
+</button>
+
                 <p className="text-xl text-gray-700">{selectedProject.address}</p>
               </div>
               <button 
