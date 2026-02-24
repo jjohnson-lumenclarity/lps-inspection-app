@@ -14,10 +14,10 @@ export default function Inspections() {
     fetchProjects();
   }, []);
 
-  const handleFileChange = (projectId: string, e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = (project_id: string, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      setSelectedFiles(prev => ({ ...prev, [projectId]: file }));
+      setSelectedFiles(prev => ({ ...prev, [project_id]: file }));
     }
   };
 
@@ -26,11 +26,11 @@ export default function Inspections() {
     alert('Edit coming soon!');
   };
 
-  const handleDelete = async (projectId: string) => {
+  const handleDelete = async (project_id: string) => {
     if (!confirm('Delete this project?')) return;
     try {
-      await fetch(`/api/projects/${projectId}`, { method: 'DELETE' });
-      setProjects(projects.filter(p => p.id !== projectId));
+      await fetch(`/api/projects/${project_id}`, { method: 'DELETE' });
+      setProjects(projects.filter(p => p.id !== project_id));
     } catch (error) {
       console.error('Delete failed:', error);  
     }
@@ -44,7 +44,7 @@ export default function Inspections() {
     try {
       const formData = new FormData();
       formData.append('photo', file);
-      formData.append('projectId', project.id);
+      formData.append('project_id', project.id);
 
       const response = await fetch('/api/upload-photo', {
         method: 'POST',
@@ -90,7 +90,7 @@ export default function Inspections() {
   
     const supabase = createClient();
   const { error } = await supabase.from('project_areas').insert([{
-    projectid: selectedProject.id,
+    project_id: selectedProject.id,
     name: zoneName,
     xpercent: x,
     ypercent: y
