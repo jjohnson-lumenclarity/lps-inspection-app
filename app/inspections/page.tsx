@@ -71,37 +71,37 @@ export default function Inspections() {
   };
 
   const handleImageClick = async (e: React.MouseEvent<HTMLDivElement>) => {
-    e.stopPropagation();
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = Math.round(((e.clientX - rect.left) / rect.width) * 100);
-    const y = Math.round(((e.clientY - rect.top) / rect.height) * 100);
-    
-    const zoneName = prompt('Lighting zone name?\nExamples: Parking Pole #3, Entry Signage, Wall Pack #7') || '';
-    if (!zoneName) return;
-    
-    const newPin = { x, y, name: zoneName };
-console.log('ADDING PIN:', newPin);
-  console.log('BEFORE setPins, current pins:', pins);
-  console.log('selectedProject.id:', selectedProject?.id);
-    
-    setPins(prev => [...prev, newPin]);
-      console.log('AFTER setPins:', newPins);
+  e.stopPropagation();
+  const rect = e.currentTarget.getBoundingClientRect();
+  const x = Math.round(((e.clientX - rect.left) / rect.width) * 100);
+  const y = Math.round(((e.clientY - rect.top) / rect.height) * 100);
+  const zoneName = prompt('Lighting zone name? (Parking Pole 3, Entry Signage, Wall Pack 7)');
+  if (!zoneName) return;
+  
+  const newPin = { x, y, name: zoneName };
+  console.log('ADDING PIN:', newPin);
+  console.log('BEFORE setPins:', pins);
+  
+  setPins(prev => {
+    const newPins = [...prev, newPin];
+    console.log('AFTER setPins:', newPins);
     return newPins;
   });
   
     const supabase = createClient();
-    const { error } = await supabase.from('project_areas').insert([{
-  projectid: selectedProject.id,
-  name: zoneName,
-  xpercent: x,
-  ypercent: y
-}]);
-    
-    if (error) {
-      alert('Save failed: ' + error.message);
-      setPins(prev => prev.slice(0, -1));
-    }
-  };
+  const { error } = await supabase.from('project_areas').insert([{
+    projectid: selectedProject.id,
+    name: zoneName,
+    xpercent: x,
+    ypercent: y
+  }]);
+  
+  if (error) {
+    console.error(error);
+    alert(`Save failed: ${error.message}`);
+    setPins(prev => prev.slice(0, -1));
+  }
+};
 
   if (loading) return (
   <div className="p-8 text-center text-2xl font-bold text-gray-500">
