@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { createClient } from '../../utils/supabase-client'; // Adjust path as needed
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 
 export default function InspectionsPage() {
   const [projects, setProjects] = useState<any[]>([]);
@@ -16,7 +16,7 @@ export default function InspectionsPage() {
   }, []);
 
   const fetchProjects = async () => {
-    const supabase = createClient();
+    const supabase = createClientComponentClient();
     const { data } = await supabase
       .from('projects')
       .select(`
