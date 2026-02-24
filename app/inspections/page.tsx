@@ -386,4 +386,3 @@ const { error } = await supabase.from('project_areas').insert([{
     </div>
   );
 }
-export default InspectionsPage;
