@@ -30,7 +30,6 @@ export default function Sidebar() {
   background: '#1e293b',
   border: 'none',
   cursor: 'pointer',
-  width: '100%',
   textAlign: 'left',
   fontSize: '16px',
   fontWeight: '600',
