@@ -103,20 +103,21 @@ export default function Sidebar() {
         key={item.href}
         href={item.href}
         onClick={() => setOpen(false)}
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '14px',
-          padding: '14px 16px',
-          borderRadius: '12px',
-          marginBottom: '4px',
-          color: isActive ? '#dbeafe' : 'white',
-          background: isActive ? '#1e40af' : 'transparent',
-          textDecoration: 'none',
-          fontSize: '16px',
-          fontWeight: '500',
-          transition: 'all 0.2s',
-        }}
+       style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '14px',
+        padding: '14px 16px',
+        borderRadius: '12px',
+        marginBottom: '4px',
+        color: isActive ? '#ffffff' : '#f9fafb',
+        background: isActive ? '#3b82f6' : 'transparent',
+        textDecoration: 'none',
+        fontSize: '16px',
+        fontWeight: '600',
+        fontFamily: 'Inter, -apple-system, sans-serif',
+        transition: 'all 0.2s',
+      }}
         onMouseEnter={(e) => {
           if (!isActive) e.currentTarget.style.background = '#374151';
         }}
