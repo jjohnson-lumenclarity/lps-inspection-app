@@ -91,11 +91,11 @@ console.log('ADDING PIN:', newPin);
   
     const supabase = createClient();
     const { error } = await supabase.from('project_areas').insert([{
-      project_id: selectedProject.id,
-      name: zoneName,
-      x_percent: x,
-      y_percent: y
-    }]);
+  projectid: selectedProject.id,
+  name: zoneName,
+  xpercent: x,
+  ypercent: y
+}]);
     
     if (error) {
       alert('Save failed: ' + error.message);
@@ -103,7 +103,11 @@ console.log('ADDING PIN:', newPin);
     }
   };
 
-  if (loading) return <div className="p-8 text-center text-2xl font-bold text-gray-500">Loading inspections...</div>;
+  if (loading) return (
+  <div className="p-8 text-center text-2xl font-bold text-gray-500">
+    Loading inspections...
+  </div>
+);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 sm:p-8">
