@@ -21,23 +21,20 @@ export default function Sidebar() {
       <button
         onClick={() => setOpen(!open)}
         style={{
-          position: 'fixed',
-          top: '20px',
-          left: '20px',
-          zIndex: 1000,
-          width: '48px',
-          height: '48px',
-          background: '#1F2937',
-          color: 'white',
-          border: 'none',
-          borderRadius: '12px',
-          fontSize: '22px',
-          cursor: 'pointer',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
+  display: 'flex',
+  alignItems: 'center',
+  gap: '14px',
+  padding: '14px 16px',
+  borderRadius: '12px',
+  marginBottom: '4px',
+  color: isActive ? '#ffffff' : '#f9fafb',
+  background: isActive ? '#3b82f6' : 'transparent',
+  textDecoration: 'none',
+  fontSize: '16px',
+  fontWeight: '600',
+  fontFamily: 'Inter, -apple-system, sans-serif',  // ← MATCHES APP
+  transition: 'all 0.2s',
+}}
       >
         {open ? '✕' : '☰'}
       </button>
