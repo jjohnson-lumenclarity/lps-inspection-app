@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import './globals.css'
-import Sidebar from '@/app/components/Sidebar'
+import Sidebar from '@/app/components/Sidebar';
 
 export const metadata: Metadata = {
   title: 'LPS Inspection App',
