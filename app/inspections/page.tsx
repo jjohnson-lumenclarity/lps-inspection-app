@@ -15,22 +15,22 @@ export default function InspectionsPage() {
     fetchProjects();
   }, []);
 
-  const fetchProjects = async () => {
-    const supabase = createClientComponentClient();
-    const { data } = await supabase
-      .from('projects')
-      .select(`
-        *,
-        projectareas (
-          name,
-          xpercent,
-          ypercent
-        ),
-        photourl
-      `);
-    setProjects(data || []);
-    setLoading(false);
-  };
+const fetchProjects = async () => {
+  const supabase = createClientComponentClient();
+  const { data } = await supabase
+    .from('projects')
+    .select(`
+      *,
+      projectareas (
+        name,
+        xpercent,
+        ypercent
+      ),
+      photourl
+    `);
+  setProjects(data || []);
+  setLoading(false);
+};
 
   const handleFileChange = (projectId: string, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -74,26 +74,26 @@ export default function InspectionsPage() {
   };
 
   const handleImageClick = async (e: React.MouseEvent<HTMLDivElement>) => {
-    e.stopPropagation();
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = Math.round(((e.clientX - rect.left) / rect.width) * 100);
-    const y = Math.round(((e.clientY - rect.top) / rect.height) * 100);
-    const zoneName = prompt('Lighting zone name? (e.g., Parking Pole 3, Entry Signage, Wall Pack 7)');
-    if (!zoneName) return;
-    const newPin = { x, y, name: zoneName };
-    setPins((prev) => [...prev, newPin]);
-    const supabase = createClient();
-    const { error } = await supabase.from('projectareas').insert({
-      projectid: selectedProject.id,
-      name: zoneName,
-      xpercent: x,
-      ypercent: y,
-    });
-    if (error) {
-      alert(`Save failed: ${error.message}`);
-      setPins((prev) => prev.slice(0, -1));
-    }
-  };
+  e.stopPropagation();
+  const rect = e.currentTarget.getBoundingClientRect();
+  const x = Math.round(((e.clientX - rect.left) / rect.width) * 100);
+  const y = Math.round(((e.clientY - rect.top) / rect.height) * 100);
+  const zoneName = prompt('Lighting zone name? (e.g., Parking Pole 3, Entry Signage, Wall Pack 7)');
+  if (!zoneName) return;
+  const newPin = { x, y, name: zoneName };
+  setPins((prev) => [...prev, newPin]);
+  const supabase = createClientComponentClient();
+  const { error } = await supabase.from('projectareas').insert({
+    projectid: selectedProject.id,
+    name: zoneName,
+    xpercent: x,
+    ypercent: y,
+  });
+  if (error) {
+    alert(`Save failed: ${error.message}`);
+    setPins((prev) => prev.slice(0, -1));
+  }
+};
 
   if (loading) {
     return (
