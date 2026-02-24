@@ -27,7 +27,7 @@ export default function Sidebar() {
   padding: '14px 16px',
   borderRadius: '12px',
   color: '#f9fafb',
-  background: '#f9fafb',
+  background: '#1e293b',
   border: 'none',
   cursor: 'pointer',
   width: '100%',
