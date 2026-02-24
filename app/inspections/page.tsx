@@ -89,12 +89,12 @@ export default function Inspections() {
   });
   
     const supabase = createClient();
-  const { error } = await supabase.from('project_areas').insert([{
-    project_id: selectedProject.id,
-    name: zoneName,
-    xpercent: x,
-    ypercent: y
-  }]);
+const { error } = await supabase.from('project_areas').insert([{
+  project_id: selectedProject.id,
+  name: zoneName,
+  xpercent: x,
+  ypercent: y
+}]);
   
   if (error) {
     console.error(error);
