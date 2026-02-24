@@ -15,8 +15,9 @@ export default function Sidebar() {
   ];
 
    return (
-    <button 
-      onClick={() => setOpen(!open)}
+    <>
+      <button
+        onClick={() => setOpen(!open)}
         style={{
           position: 'fixed',
           top: '20px',
