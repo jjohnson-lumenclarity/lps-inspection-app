@@ -1,6 +1,5 @@
-'use client';
-import type { Metadata } from 'next'
-import './globals.css'
+import type { Metadata } from 'next';
+import './globals.css';
 import Sidebar from '@/components/Sidebar';
 
 export const metadata: Metadata = {
@@ -16,8 +15,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="font-['Inter'] antialiased">
+        <Sidebar />
         {children}
       </body>
     </html>
-  )
+  );
 }
