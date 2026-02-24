@@ -97,13 +97,13 @@ export default function Sidebar() {
 
        <nav style={{ flex: 1, padding: '16px 12px' }}>
   {menuItems.map((item) => {
-    const isActive = currentPath === item.href;
-    return (
-      <Link
-        key={item.href}
-        href={item.href}
-        onClick={() => setOpen(false)}
-       style={{
+  const isActive = currentPath === item.href;
+  return (
+    <Link
+      key={item.href}
+      href={item.href}
+      onClick={() => setOpen(false)}
+      style={{
         display: 'flex',
         alignItems: 'center',
         gap: '14px',
@@ -118,18 +118,19 @@ export default function Sidebar() {
         fontFamily: 'Inter, -apple-system, sans-serif',
         transition: 'all 0.2s',
       }}
-        onMouseEnter={(e) => {
-          if (!isActive) e.currentTarget.style.background = '#374151';
-        }}
-        onMouseLeave={(e) => {
-          if (!isActive) e.currentTarget.style.background = 'transparent';
-        }}
-      >
-        <span style={{ fontSize: '20px' }}>{item.icon}</span>
-        {item.label}
-      </Link>
-    );
-  })}
+      onMouseEnter={(e) => {
+        if (!isActive) e.currentTarget.style.background = '#374151';
+      }}
+      onMouseLeave={(e) => {
+        if (!isActive) e.currentTarget.style.background = 'transparent';
+      }}
+    >
+      <span style={{ fontSize: '20px' }}>{item.icon}</span>
+      {item.label}
+    </Link>
+  );
+})}
+
 </nav>
 
         <div
