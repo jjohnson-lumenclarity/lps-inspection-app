@@ -200,9 +200,39 @@ export default function Dashboard() {
         fontFamily: 'system-ui',
       }}
     >
-      <h1 style={{ fontSize: '32px', color: '#1F2937', marginBottom: '32px' }}>
-        LPS Inspection Dashboard
-      </h1>
+      <div className="mb-12 p-6 bg-white/80 backdrop-blur rounded-3xl shadow-xl border">
+  <div className="flex flex-col lg:flex-row gap-4 items-center justify-between">
+    <h1 className="text-4xl font-black bg-gradient-to-r from-gray-800 to-slate-800 bg-clip-text text-transparent">
+      Guardian Lightning Inspections
+    </h1>
+    
+    {/* SEARCH + ACTIONS */}
+    <div className="flex flex-col sm:flex-row gap-4 w-full lg:w-auto">
+      <div className="flex-1 relative">
+        <input
+          type="text"
+          placeholder="🔍 Search clients, addresses..."
+          className="w-full p-4 pl-12 rounded-2xl border-2 border-gray-200 focus:border-blue-400 shadow-lg focus:shadow-xl transition-all"
+          onChange={(e) => console.log('Search:', e.target.value)}
+        />
+        <span className="absolute left-4 top-4 text-gray-400">🔍</span>
+      </div>
+      <button className="px-8 py-4 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold rounded-2xl shadow-lg hover:shadow-xl transition-all whitespace-nowrap">
+        + New Project
+      </button>
+    </div>
+  </div>
+  
+  {/* RECENT */}
+  <div className="mt-8 grid grid-cols-1 md:grid-cols-5 gap-4">
+    {[1,2,3,4,5].map(i => (
+      <div key={i} className="p-3 bg-blue-100 rounded-xl text-center text-sm cursor-pointer hover:bg-blue-200 transition-all">
+        Recent #{i}
+      </div>
+    ))}
+  </div>
+</div>
+
 
       {/* Add/Edit Project Form */}
       <div
