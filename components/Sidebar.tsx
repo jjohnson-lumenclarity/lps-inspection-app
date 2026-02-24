@@ -98,33 +98,41 @@ export default function Sidebar() {
           </p>
         </div>
 
-        <nav style={{ flex: 1, padding: '16px 12px' }}>
-          {menuItems.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              onClick={() => setOpen(false)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '14px',
-                padding: '14px 16px',
-                borderRadius: '12px',
-                marginBottom: '4px',
-                color: 'white',
-                textDecoration: 'none',
-                fontSize: '16px',
-                fontWeight: '500',
-                transition: 'background 0.2s',
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = '#374151')}
-              onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-            >
-              <span style={{ fontSize: '20px' }}>{item.icon}</span>
-              {item.label}
-            </Link>
-          ))}
-        </nav>
+       <nav style={{ flex: 1, padding: '16px 12px' }}>
+  {menuItems.map((item) => {
+    const isActive = currentPath === item.href;
+    return (
+      <Link
+        key={item.href}
+        href={item.href}
+        onClick={() => setOpen(false)}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '14px',
+          padding: '14px 16px',
+          borderRadius: '12px',
+          marginBottom: '4px',
+          color: isActive ? '#dbeafe' : 'white',
+          background: isActive ? '#1e40af' : 'transparent',
+          textDecoration: 'none',
+          fontSize: '16px',
+          fontWeight: '500',
+          transition: 'all 0.2s',
+        }}
+        onMouseEnter={(e) => {
+          if (!isActive) e.currentTarget.style.background = '#374151';
+        }}
+        onMouseLeave={(e) => {
+          if (!isActive) e.currentTarget.style.background = 'transparent';
+        }}
+      >
+        <span style={{ fontSize: '20px' }}>{item.icon}</span>
+        {item.label}
+      </Link>
+    );
+  })}
+</nav>
 
         <div
           style={{
