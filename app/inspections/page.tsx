@@ -300,16 +300,6 @@ const { error } = await supabase.from('project_areas').insert([{
                 <h2 className="text-4xl font-black mb-2 text-gray-900">
                   {selectedProject.title} ({pins.length} zones)
                 </h2>
-                <button 
-  onClick={() => {
-    console.log('🔴 DEBUG:', { pins, pinsLength: pins.length, selectedProjectId: selectedProject?.id });
-    alert(`Pins: ${pins.length}\nFirst pin: ${pins[0]?.name || 'none'}`);
-  }}
-  className="ml-4 px-4 py-2 bg-red-500 text-white rounded font-bold"
->
-  🔴 Debug Pins ({pins.length})
-</button>
-
                 <p className="text-xl text-gray-700">{selectedProject.address}</p>
               </div>
               <button 
@@ -320,38 +310,48 @@ const { error } = await supabase.from('project_areas').insert([{
               </button>
             </div>
             
-            <div className="relative mb-12 w-full h-[90vh] flex items-center justify-center" style={{position: 'relative'}}>
-              <div 
-                className="h-[90vh] w-full max-w-6xl mx-auto bg-cover bg-center bg-no-repeat rounded-3xl border-8 border-dashed border-blue-300/50 shadow-3xl relative overflow-visible cursor-crosshair hover:border-blue-400/80 transition-all duration-300 hover:shadow-4xl group/map z-0"
-                style={{ 
-                  backgroundImage: `url(${selectedProject?.photo_url || 'https://via.placeholder.com/1200x800/4F46E5/FFFFFF?text=Aerial+Site+Photo'})`,
-                  backgroundSize: 'cover',
-                  backgroundPosition: 'center',
-                  height: '90vh',
-                  minHeight: '600px'
-                }}
-                onClick={handleImageClick}
-              >
-                {pins.map((pin, index) => (
-                  <div
-                    key={index}
-                    className="absolute w-20 h-20 bg-gradient-to-br from-red-400 to-pink-500 border-8 border-white/90 rounded-full shadow-2xl flex items-center justify-center text-white font-bold text-lg cursor-pointer hover:scale-110 transition-all z-50"
-                    style={{
-                      left: `${pin.x}%`,
-                      top: `${pin.y}%`,
-                      transform: 'translate(-50%, -50%)'
-                    }}
-                  >
-                    {pin.name.slice(0, 3).toUpperCase()}
-                  </div>
-                ))}
-                
-                <div className="absolute inset-0 bg-black/0 group-hover/map:bg-black/20 transition-all flex items-center justify-center pointer-events-none rounded-3xl z-10">
-                  <div className="text-white text-2xl font-bold drop-shadow-2xl opacity-0 group-hover/map:opacity-100">
-                    👆 Click to add lighting zone pin
-                  </div>
-                </div>
-              </div>
+           <div className="relative mb-12 w-full h-[90vh] flex items-center justify-center" style={{position: 'relative', zIndex: 1}}>
+  <div
+    className="absolute inset-0 bg-cover bg-center bg-no-repeat rounded-3xl border-8 border-dashed border-blue-300/50 shadow-3xl cursor-crosshair hover:border-blue-400/80 transition-all duration-300 hover:shadow-4xl group/map"
+    style={{
+      backgroundImage: `url(${selectedProject?.photourl || 'https://via.placeholder.com/1200x800/4F46E5/FFFFFF?text=Aerial+Site+Photo'})`,
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
+      height: '90vh',
+      minHeight: '600px',
+      zIndex: 0,
+    }}
+    onClick={handleImageClick}
+  >
+    {/* PIN LAYER - ABOVE MAP */}
+    <div style={{position: 'relative', zIndex: 100}}>
+      {pins.map((pin, index) => (
+        <div
+          key={index}
+          className="absolute w-24 h-24 bg-gradient-to-br from-red-500 via-red-400 to-pink-500 border-8 border-white shadow-2xl rounded-full flex items-center justify-center text-white font-bold text-xl cursor-pointer hover:scale-125 transition-all duration-200 animate-pulse"
+          style={{
+            left: `${pin.x_percent}%`,
+            top: `${pin.y_percent}%`,
+            transform: 'translate(-50%, -50%)',
+            zIndex: 100 + index,  // Stack higher
+            boxShadow: '0 10px 30px rgba(239,68,68,0.6)',
+          }}
+          title={pin.name}  // Tooltip
+        >
+          {pin.name.slice(0, 3).toUpperCase()}
+        </div>
+      ))}
+    </div>
+    
+    {/* Hover overlay */}
+    <div className="absolute inset-0 bg-black/0 group-hover/map:bg-black/20 transition-all flex items-center justify-center pointer-events-none rounded-3xl z-10">
+      <div className="text-white text-2xl font-bold drop-shadow-2xl opacity-0 group-hover/map:opacity-100">
+        Click to add zone pin ({pins.length})
+      </div>
+    </div>
+  </div>
+</div>
+
               <p className="text-center mt-6 text-lg font-semibold text-gray-700">
                 📍 Click building areas to create lighting zone pins ({pins.length} total)
               </p>
