@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-const supabase = createClient();
+import { createClient } from '../../utils/supabase-client';
 
 export default function InspectionsPage() {
   const [projects, setProjects] = useState<any[]>([]);
