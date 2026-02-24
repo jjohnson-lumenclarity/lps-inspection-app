@@ -309,38 +309,31 @@ const { error } = await supabase.from('project_areas').insert([{
                 ← All Inspections
               </button>
             </div>
-           <div className="relative mb-12 w-full h-[90vh] flex items-center justify-center" style={{position: 'relative', zIndex: 1}}>
+           <div className="relative mb-12 w-full h-[90vh]" style={{position: 'relative'}}>
   <div
-    className="absolute inset-0 bg-cover bg-center bg-no-repeat rounded-3xl border-8 border-dashed border-blue-300/50 shadow-3xl cursor-crosshair hover:border-blue-400/80 transition-all duration-300 hover:shadow-4xl group/map"
+    className="w-full h-[90vh] max-w-6xl mx-auto bg-cover bg-center rounded-3xl border-8 border-dashed border-blue-300/50 shadow-3xl relative overflow-visible cursor-crosshair"
     style={{
       backgroundImage: `url(${selectedProject?.photourl || 'https://via.placeholder.com/1200x800/4F46E5/FFFFFF?text=Aerial+Site+Photo'})`,
-      backgroundSize: 'cover',
-      backgroundPosition: 'center',
-      height: '90vh',
-      minHeight: '600px',
-      zIndex: 0,
+      backgroundSize: 'cover'
     }}
     onClick={handleImageClick}
   >
-    {/* PIN LAYER - ABOVE MAP */}
-    <div style={{position: 'relative', zIndex: 100}}>
-      {pins.map((pin, index) => (
-        <div
-          key={index}
-          className="absolute w-24 h-24 bg-gradient-to-br from-red-500 via-red-400 to-pink-500 border-8 border-white shadow-2xl rounded-full flex items-center justify-center text-white font-bold text-xl cursor-pointer hover:scale-125 transition-all duration-200 animate-pulse"
-          style={{
-            left: `${pin.x_percent}%`,
-            top: `${pin.y_percent}%`,
-            transform: 'translate(-50%, -50%)',
-            zIndex: 100 + index,  // Stack higher
-            boxShadow: '0 10px 30px rgba(239,68,68,0.6)',
-          }}
-          title={pin.name}  // Tooltip
-        >
-          {pin.name.slice(0, 3).toUpperCase()}
-        </div>
-      ))}
-    </div>
+    {/* PINS - z-index 999 */}
+    {pins.map((pin, index) => (
+      <div
+        key={index}
+        className="absolute w-20 h-20 bg-red-500 border-4 border-white rounded-full shadow-2xl flex items-center justify-center text-white font-bold text-lg z-[999]"
+        style={{
+          left: `${(pin.x_percent || pin.xpercent || 50)}%`,
+          top: `${(pin.y_percent || pin.ypercent || 50)}%`,
+          transform: 'translate(-50%, -50%)'
+        }}
+      >
+        {pin.name?.slice(0, 3)?.toUpperCase() || 'PIN'}
+      </div>
+    ))}
+  </div>
+</div>
     {/* Hover overlay */}
     <div className="absolute inset-0 bg-black/0 group-hover/map:bg-black/20 transition-all flex items-center justify-center pointer-events-none rounded-3xl z-10">
       <div className="text-white text-2xl font-bold drop-shadow-2xl opacity-0 group-hover/map:opacity-100">
