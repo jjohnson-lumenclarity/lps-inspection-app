@@ -26,7 +26,7 @@ export default function Sidebar() {
           position: 'fixed',
           top: '16px',
           left: '16px',
-          zIndex: 5000,
+          zIndex: 1001,
           display: 'flex',
           alignItems: 'center',
           gap: '14px',
