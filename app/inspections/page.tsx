@@ -113,7 +113,7 @@ const { error } = await supabase.from('project_areas').insert([{
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 sm:p-8">
       <div className="max-w-7xl mx-auto">
         <h1 className="text-5xl font-black mb-12 text-center bg-gradient-to-r from-gray-800 via-gray-600 to-slate-800 bg-clip-text text-transparent drop-shadow-2xl">
-          Guardian Lightning Inspection - Current Projects
+          Guardian Lightning Inspection - Current Projects 🚀 LIVE
         </h1>
 
         <div
@@ -341,21 +341,21 @@ const { error } = await supabase.from('project_areas').insert([{
       </div>
     </div>
   </div>
-</div>
-              <p className="text-center mt-6 text-lg font-semibold text-gray-700">
-  Click building areas to create lighting zone pins ({pins.length} total)
-</p>
+
+  <p className="text-center mt-6 text-lg font-semibold text-gray-700">
+    Click building areas to create lighting zone pins ({pins.length} total)
+  </p>
 {pins.length > 0 && (
-  <div>
-    <h3 className="text-2xl font-black mb-6 flex items-center gap-2">
-      📋 Active Lighting Zones ({pins.length})
-    </h3>
-    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-      {pins.map((pin, i) => (
-        <div
-          key={i}
-          className="p-6 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl border-2 border-blue-200 shadow-lg hover:shadow-xl transition-all hover:scale-102"
-        >
+    <div>
+      <h3 className="text-2xl font-black mb-6 flex items-center gap-2">
+        📋 Active Lighting Zones ({pins.length})
+      </h3>
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        {pins.map((pin, i) => (
+          <div
+            key={i}
+            className="p-6 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl border-2 border-blue-200 shadow-lg hover:shadow-xl transition-all hover:scale-102"
+          >
           <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center text-white font-black text-xl mb-4 mx-auto shadow-2xl">
             {pin.name.slice(0, 3)}
           </div>
