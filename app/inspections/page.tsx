@@ -32,7 +32,7 @@ export default function InspectionsPage() {
   const [selectedFiles, setSelectedFiles] = useState<Record<string, File | null>>({});
   const [uploadingId, setUploadingId] = useState<string | null>(null);
 
-  const projectPhoto = useMemo(() => selectedProject?.photo_url || FALLBACK_IMAGE, [selectedProject]);
+  const projectPhoto = useMemo(() => selectedProject?.photo_url ?? null, [selectedProject]);
 
   const clearSelection = () => {
     setSelectedProject(null);
@@ -273,23 +273,33 @@ export default function InspectionsPage() {
             </div>
 
             <div
-              className="relative h-[45vh] md:h-[55vh] w-full cursor-crosshair overflow-hidden rounded-xl border-2 border-dashed border-blue-300 bg-cover bg-center"
-              style={{ backgroundImage: `url(${projectPhoto})` }}
-              onClick={handleImageClick}
+              className={`relative h-[45vh] w-full overflow-hidden rounded-xl border-2 border-dashed border-blue-300 bg-center md:h-[55vh] ${
+                projectPhoto ? 'cursor-crosshair bg-cover' : 'bg-slate-100'
+              }`}
+              style={projectPhoto ? { backgroundImage: `url(${projectPhoto})` } : undefined}
+              onClick={projectPhoto ? handleImageClick : undefined}
             >
-              {pins.map((pin, index) => (
-                <div
-                  key={pin.id || `${pin.name}-${index}`}
-                  className="absolute flex h-10 w-10 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 border-white bg-red-500 text-xs font-bold text-white"
-                  style={{ left: `${pin.x_percent}%`, top: `${pin.y_percent}%` }}
-                  title={`${pin.name} (${pin.x_percent}, ${pin.y_percent})`}
-                >
-                  {pin.name.slice(0, 3).toUpperCase()}
+              {projectPhoto ? (
+                pins.map((pin, index) => (
+                  <div
+                    key={pin.id || `${pin.name}-${index}`}
+                    className="absolute flex h-10 w-10 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 border-white bg-red-500 text-xs font-bold text-white"
+                    style={{ left: `${pin.x_percent}%`, top: `${pin.y_percent}%` }}
+                    title={`${pin.name} (${pin.x_percent}, ${pin.y_percent})`}
+                  >
+                    {pin.name.slice(0, 3).toUpperCase()}
+                  </div>
+                ))
+              ) : (
+                <div className="flex h-full items-center justify-center px-6 text-center text-sm text-gray-600">
+                  Upload a project photo from the card above to start placing lighting zone pins.
                 </div>
-              ))}
+              )}
             </div>
 
-            <p className="mt-3 text-sm text-gray-600">Click anywhere on the photo to add a lighting zone pin.</p>
+            <p className="mt-3 text-sm text-gray-600">
+              {projectPhoto ? 'Click anywhere on the photo to add a lighting zone pin.' : 'Photo required to place pins.'}
+            </p>
 
             {pins.length > 0 && (
               <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
