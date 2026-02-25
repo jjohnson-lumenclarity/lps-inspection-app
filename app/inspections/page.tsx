@@ -1,384 +1,343 @@
 'use client';
-import { useState, useEffect, ChangeEvent } from 'react';
+
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import Image from 'next/image';
 import { createClient } from '@/utils/supabase/client';
 
-export default function Inspections() {
-  const [projects, setProjects] = useState<any[]>([]);
-  const [selectedProject, setSelectedProject] = useState<any>(null);
-  const [pins, setPins] = useState<{x: number, y: number, name: string}[]>([]);
+type ProjectArea = {
+  id?: string;
+  name: string;
+  x_percent: number;
+  y_percent: number;
+};
+
+type Project = {
+  id: string;
+  title: string;
+  description: string;
+  address: string;
+  status: string;
+  photo_url?: string | null;
+  project_areas?: ProjectArea[];
+};
+
+const FALLBACK_IMAGE = 'https://via.placeholder.com/1200x800/4F46E5/FFFFFF?text=Upload+Project+Photo';
+
+export default function InspectionsPage() {
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [pins, setPins] = useState<ProjectArea[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedFiles, setSelectedFiles] = useState<{[key: string]: File}>({});
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<Record<string, File | null>>({});
   const [uploadingId, setUploadingId] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchProjects();
-  }, []);
+  const projectPhoto = useMemo(() => selectedProject?.photo_url || FALLBACK_IMAGE, [selectedProject]);
 
-  const handleFileChange = (projectId: string, e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setSelectedFiles(prev => ({ ...prev, [project_id]: file }));
-    }
+  const clearSelection = () => {
+    setSelectedProject(null);
+    setPins([]);
   };
 
-  const handleEdit = (project: any) => {
-    console.log('Edit project:', project);
-    alert('Edit coming soon!');
+  const fetchProjects = useCallback(async () => {
+    setLoading(true);
+    setErrorMessage(null);
+
+    try {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from('projects')
+        .select('*, project_areas(id, name, x_percent, y_percent)')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error loading projects:', error);
+        setErrorMessage('Could not load projects. Please refresh and try again.');
+      }
+
+      const nextProjects = (data as Project[]) || [];
+      setProjects(nextProjects);
+
+      if (selectedProject) {
+        const freshSelected = nextProjects.find((project) => project.id === selectedProject.id) || null;
+        setSelectedProject(freshSelected);
+        setPins(freshSelected?.project_areas || []);
+      }
+    } catch (error) {
+      console.error('Unexpected error loading projects:', error);
+      setErrorMessage('Could not load projects. Please refresh and try again.');
+      setProjects([]);
+      clearSelection();
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedProject]);
+
+  useEffect(() => {
+    void fetchProjects();
+  }, [fetchProjects]);
+
+  useEffect(() => {
+    const onEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        clearSelection();
+      }
+    };
+
+    window.addEventListener('keydown', onEscape);
+    return () => window.removeEventListener('keydown', onEscape);
+  }, []);
+
+  const handleSelectProject = (project: Project) => {
+    setSelectedProject(project);
+    setPins(project.project_areas || []);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleFileChange = (projectId: string, file: File | null) => {
+    setSelectedFiles((prev) => ({ ...prev, [projectId]: file }));
   };
 
   const handleDelete = async (projectId: string) => {
-formData.append('projectId', project.id);
-    if (!confirm('Delete this project?')) return;
-    try {
-      await fetch(`/api/projects/${project_id}`, { method: 'DELETE' });
-      setProjects(projects.filter(p => p.id !== project_id));
-    } catch (error) {
-      console.error('Delete failed:', error);  
+    if (!window.confirm('Delete this project?')) return;
+
+    const supabase = createClient();
+    const { error } = await supabase.from('projects').delete().eq('id', projectId);
+
+    if (error) {
+      console.error('Delete failed:', error);
+      window.alert(`Delete failed: ${error.message}`);
+      return;
+    }
+
+    setProjects((prev) => prev.filter((project) => project.id !== projectId));
+    if (selectedProject?.id === projectId) {
+      clearSelection();
     }
   };
 
-  const handleUploadPhoto = async (project: any) => {
+  const handleUploadPhoto = async (project: Project) => {
     const file = selectedFiles[project.id];
     if (!file) return;
 
     setUploadingId(project.id);
+
     try {
       const formData = new FormData();
       formData.append('photo', file);
-      formData.append('project_id', project.id);
+      formData.append('projectId', project.id);
 
       const response = await fetch('/api/upload-photo', {
         method: 'POST',
         body: formData,
       });
 
-      if (response.ok) {
-        window.location.reload();
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        console.error('Upload failed:', body);
+        window.alert('Upload failed. Please try again.');
+        return;
       }
+
+      const { photo_url } = (await response.json()) as { photo_url: string };
+
+      setProjects((prev) => prev.map((item) => (item.id === project.id ? { ...item, photo_url } : item)));
+
+      if (selectedProject?.id === project.id) {
+        setSelectedProject((prev) => (prev ? { ...prev, photo_url } : prev));
+      }
+
+      setSelectedFiles((prev) => ({ ...prev, [project.id]: null }));
     } catch (error) {
       console.error('Upload failed:', error);
+      window.alert('Upload failed. Please try again.');
     } finally {
       setUploadingId(null);
     }
   };
 
-  const fetchProjects = async () => {
+  const handleImageClick = async (event: React.MouseEvent<HTMLDivElement>) => {
+    if (!selectedProject) return;
+
+    const rect = event.currentTarget.getBoundingClientRect();
+    const x = Math.round(((event.clientX - rect.left) / rect.width) * 100);
+    const y = Math.round(((event.clientY - rect.top) / rect.height) * 100);
+
+    const name = window.prompt('Lighting zone name?');
+    if (!name) return;
+
+    const optimisticPin: ProjectArea = { name, x_percent: x, y_percent: y };
+    setPins((prev) => [...prev, optimisticPin]);
+
     const supabase = createClient();
-    const { data } = await supabase
-      .from('projects')
-      .select('*, project_areas(name, x_percent, y_percent), photo_url');
-    setProjects(data || []);
-    setLoading(false);
+    const { data, error } = await supabase
+      .from('project_areas')
+      .insert([{ project_id: selectedProject.id, ...optimisticPin }])
+      .select('id, name, x_percent, y_percent')
+      .single();
+
+    if (error) {
+      console.error('Save failed:', error);
+      setPins((prev) => prev.slice(0, -1));
+      window.alert(`Save failed: ${error.message}`);
+      return;
+    }
+
+    setPins((prev) => [...prev.slice(0, -1), data as ProjectArea]);
   };
 
-  const handleImageClick = async (e: React.MouseEvent<HTMLDivElement>) => {
-  e.stopPropagation();
-  const rect = e.currentTarget.getBoundingClientRect();
-  const x = Math.round(((e.clientX - rect.left) / rect.width) * 100);
-  const y = Math.round(((e.clientY - rect.top) / rect.height) * 100);
-  const zoneName = prompt('Lighting zone name? (Parking Pole 3, Entry Signage, Wall Pack 7)');
-  if (!zoneName) return;
-  
-  const newPin = { x, y, name: zoneName };
-  console.log('ADDING PIN:', newPin);
-  console.log('BEFORE setPins:', pins);
-  
-  setPins(prev => {
-    const newPins = [...prev, newPin];
-    console.log('AFTER setPins:', newPins);
-    return newPins;
-  });
-  
-    const supabase = createClient();
-const { error } = await supabase.from('project_areas').insert([{
-  project_id: selectedProject.id,
-  name: zoneName,
-  x_percent: x,
-   y_percent: y
-}]);
-  
-  if (error) {
-    console.error(error);
-    alert(`Save failed: ${error.message}`);
-    setPins(prev => prev.slice(0, -1));
-  }
-};
-
-  if (loading) return (
-  <div className="p-8 text-center text-2xl font-bold text-gray-500">
-    Loading inspections...
-  </div>
-);
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 sm:p-8">
-      <div className="max-w-7xl mx-auto">
-        <h1 className="text-5xl font-black mb-12 text-center bg-gradient-to-r from-gray-800 via-gray-600 to-slate-800 bg-clip-text text-transparent drop-shadow-2xl">
-          Guardian Lightning Inspection - Current Projects 🚀 LIVE
-        </h1>
-
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))',
-            gap: '24px',
-          }}
-        >
-          {projects.length === 0 ? (
-            <p
-              style={{
-                gridColumn: '1 / -1',
-                textAlign: 'center',
-                color: '#6B7280',
-                fontSize: '18px',
-              }}
+    <div className="min-h-screen bg-slate-50 p-4 pt-20 sm:p-8 sm:pt-24">
+      <div className="mx-auto max-w-7xl space-y-6">
+        <div className="flex items-center justify-between gap-3">
+          <h1 className="text-3xl font-bold text-gray-900">Inspections</h1>
+          {selectedProject && (
+            <button
+              type="button"
+              className="rounded-md bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
+              onClick={clearSelection}
             >
-              No projects yet. Add your first project above!
-            </p>
-          ) : (
-            projects.map((project) => (
+              Back to project list
+            </button>
+          )}
+        </div>
+
+        {errorMessage && (
+          <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+            {errorMessage}
+            <button
+              type="button"
+              className="ml-3 rounded bg-red-600 px-3 py-1 text-xs font-semibold text-white"
+              onClick={() => void fetchProjects()}
+            >
+              Retry
+            </button>
+          </div>
+        )}
+
+        {selectedProject && (
+          <section className="relative z-0 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900 sm:text-2xl">{selectedProject.title}</h2>
+                <p className="text-gray-600">{selectedProject.address}</p>
+              </div>
+              <button
+                type="button"
+                className="shrink-0 rounded bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700"
+                onClick={clearSelection}
+              >
+                Close
+              </button>
+            </div>
+
+            <div
+              className="relative h-[40vh] w-full cursor-crosshair overflow-hidden rounded-xl border-2 border-dashed border-blue-300 bg-slate-100 md:h-[52vh]"
+              style={{ position: 'relative', height: '52vh', minHeight: '320px', maxHeight: '620px', width: '100%' }}
+              onClick={handleImageClick}
+            >
+              <Image src={projectPhoto} alt={`${selectedProject.title} inspection`} fill className="object-contain" unoptimized />
+
+              {pins.map((pin, index) => (
+                <div
+                  key={pin.id || `${pin.name}-${index}`}
+                  className="absolute flex h-10 w-10 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 border-white bg-red-500 text-xs font-bold text-white shadow"
+                  style={{ left: `${pin.x_percent}%`, top: `${pin.y_percent}%` }}
+                  title={`${pin.name} (${pin.x_percent}, ${pin.y_percent})`}
+                >
+                  {pin.name.slice(0, 3).toUpperCase()}
+                </div>
+              ))}
+            </div>
+
+            <p className="mt-3 text-sm text-gray-600">Click anywhere on the image to add a lighting zone pin.</p>
+
+            {pins.length > 0 && (
+              <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+                {pins.map((pin, index) => (
+                  <div key={pin.id || `${pin.name}-list-${index}`} className="rounded-lg border border-gray-200 p-3">
+                    <p className="font-medium text-gray-900">{pin.name}</p>
+                    <p className="text-sm text-gray-600">
+                      X: {pin.x_percent}% • Y: {pin.y_percent}%
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
+
+        {loading ? (
+          <div className="rounded-xl border border-gray-200 bg-white p-8 text-center text-lg font-semibold text-gray-500">
+            Loading inspections...
+          </div>
+        ) : (
+          <div
+            className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3"
+            style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem' }}
+          >
+            {projects.map((project) => (
               <div
                 key={project.id}
-                style={{
-                  padding: '25px',
-                  border: '1px solid #E5E7EB',
-                  borderRadius: '12px',
-                  background: 'white',
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
-                  cursor: 'pointer',
-                  transition: 'box-shadow 0.3s',
-                }}
-                onClick={() => {
-                  setSelectedProject(project);
-                  setPins(project.project_areas?.map((a: any) => ({
-                    x: a.x_percent, 
-                    y: a.y_percent, 
-                    name: a.name
-                  })) || []);
-                }}
+                className="cursor-pointer rounded-xl border border-gray-200 bg-white p-5 shadow-sm"
+                style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: '0.75rem', padding: '1.25rem' }}
+                onClick={() => handleSelectProject(project)}
               >
-                <h3
-                  style={{
-                    margin: '0 0 8px 0',
-                    color: '#1F2937',
-                    fontSize: '20px',
-                  }}
-                >
-                  {project.title}
-                </h3>
-                <p style={{ margin: '0 0 8px 0', color: '#6B7280' }}>
-                  {project.description}
-                </p>
-                <p
-                  style={{
-                    margin: '0 0 12px 0',
-                    color: '#374151',
-                    fontSize: '14px',
-                  }}
-                >
-                  📍 {project.address}
-                </p>
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    marginBottom: '16px',
-                  }}
-                >
-                  <span
-                    style={{
-                      padding: '4px 12px',
-                      background:
-                        project.status === 'Active'
-                          ? '#10B981'
-                          : project.status === 'In Progress'
-                          ? '#F59E0B'
-                          : '#6B7280',
-                      color: 'white',
-                      borderRadius: '20px',
-                      fontSize: '14px',
-                      fontWeight: '500',
-                    }}
-                  >
-                    {project.status}
-                  </span>
-                </div>
+                <h2 className="text-lg font-semibold text-gray-900">{project.title}</h2>
+                <p className="text-sm text-gray-600">{project.description}</p>
+                <p className="mt-1 text-sm text-gray-500">📍 {project.address}</p>
 
                 {project.photo_url && (
-                  <div style={{ marginBottom: '12px' }}>
-                    <img
-                      src={project.photo_url}
-                      alt="Project"
-                      style={{
-                        width: '100%',
-                        maxHeight: '200px',
-                        objectFit: 'cover',
-                        borderRadius: '8px',
-                      }}
-                    />
+                  <div
+                    className="relative mt-3 h-44 w-full overflow-hidden rounded-lg"
+                    style={{ position: 'relative', height: '11rem', width: '100%' }}
+                  >
+                    <Image src={project.photo_url} alt={`${project.title} photo`} fill unoptimized className="object-cover" />
                   </div>
                 )}
 
-                <div style={{ marginBottom: '12px' }}>
+                <div className="mt-3 flex items-center gap-2">
                   <input
                     type="file"
                     accept="image/*"
-                    onChange={(e) => handleFileChange(project.id, e)}
+                    onChange={(event) => handleFileChange(project.id, event.target.files?.[0] || null)}
                   />
                   <button
-                    onClick={() => handleUploadPhoto(project)}
+                    type="button"
+                    className="rounded bg-emerald-600 px-3 py-2 text-sm font-medium text-white disabled:bg-gray-400"
                     disabled={!selectedFiles[project.id] || uploadingId === project.id}
-                    style={{
-                      marginTop: '8px',
-                      padding: '8px 16px',
-                      background:
-                        !selectedFiles[project.id] || uploadingId === project.id
-                          ? '#9CA3AF'
-                          : '#10B981',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '6px',
-                      fontSize: '14px',
-                      fontWeight: '500',
-                      cursor:
-                        !selectedFiles[project.id] || uploadingId === project.id
-                          ? 'not-allowed'
-                          : 'pointer',
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      void handleUploadPhoto(project);
                     }}
                   >
-                    {uploadingId === project.id ? 'Uploading…' : 'Upload Photo'}
+                    {uploadingId === project.id ? 'Uploading…' : 'Upload'}
                   </button>
                 </div>
 
-                <div style={{ display: 'flex', gap: '8px' }}>
+                <div className="mt-3 flex gap-2">
                   <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleEdit(project);
-                    }}
-                    style={{
-                      padding: '8px 16px',
-                      background: '#3B82F6',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '6px',
-                      fontSize: '14px',
-                      fontWeight: '500',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDelete(project.id);
-                    }}
-                    style={{
-                      padding: '8px 16px',
-                      background: '#EF4444',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '6px',
-                      fontSize: '14px',
-                      fontWeight: '500',
-                      cursor: 'pointer',
+                    type="button"
+                    className="rounded bg-red-600 px-3 py-2 text-sm font-medium text-white"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      void handleDelete(project.id);
                     }}
                   >
                     Delete
                   </button>
                 </div>
               </div>
-            ))
-          )}
-        </div>
-        
-        {selectedProject && (
-          <div className="bg-white/90 backdrop-blur-2xl rounded-3xl shadow-3xl border border-white/50 p-8 max-w-6xl mx-auto">
-            <div className="flex flex-col lg:flex-row gap-8 items-start lg:items-center mb-12">
-              <div className="flex-1">
-                <h2 className="text-4xl font-black mb-2 text-gray-900">
-                  {selectedProject.title} ({pins.length} zones)
-                </h2>
-                <p className="text-xl text-gray-700">{selectedProject.address}</p>
-              </div>
-              <button 
-                onClick={() => {setSelectedProject(null); setPins([]);}}
-                className="px-8 py-3 bg-gradient-to-r from-gray-200 to-gray-300 hover:from-gray-300 hover:to-gray-400 text-gray-800 rounded-2xl font-bold shadow-lg hover:shadow-xl transition-all whitespace-nowrap"
-              >
-                ← All Inspections
-              </button>
-            </div>
-           <div className="relative mb-12 w-full h-[90vh]" style={{position: 'relative'}}>
-  <div
-    className="w-full h-[90vh] max-w-6xl mx-auto bg-cover bg-center rounded-3xl border-8 border-dashed border-blue-300/50 shadow-3xl relative overflow-visible cursor-crosshair"
-    style={{
-      backgroundImage: `url(${selectedProject?.photourl || 'https://via.placeholder.com/1200x800/4F46E5/FFFFFF?text=Aerial+Site+Photo'})`,
-      backgroundSize: 'cover'
-    }}
-    onClick={handleImageClick}
-  >
-    {/* PINS - z-index 999 */}
-    {pins.map((pin, index) => (
-      <div
-        key={index}
-        className="absolute w-20 h-20 bg-red-500 border-4 border-white rounded-full shadow-2xl flex items-center justify-center text-white font-bold text-lg z-[999]"
-        style={{
-          left: `${(pin.x_percent || pin.xpercent || 50)}%`,
-          top: `${(pin.y_percent || pin.ypercent || 50)}%`,
-          transform: 'translate(-50%, -50%)'
-        }}
-      >
-        {pin.name?.slice(0, 3)?.toUpperCase() || 'PIN'}
-      </div>
-    ))}
-  </div>
-</div>
-    {/* Hover overlay */}
-    <div className="absolute inset-0 bg-black/0 group-hover/map:bg-black/20 transition-all flex items-center justify-center pointer-events-none rounded-3xl z-10">
-      <div className="text-white text-2xl font-bold drop-shadow-2xl opacity-0 group-hover/map:opacity-100">
-        Click to add zone pin ({pins.length})
-      </div>
-    </div>
-  </div>
-)}
-<div>
-  <p className="text-center mt-6 text-lg font-semibold text-gray-700">
-    Click building areas to create lighting zone pins ({pins.length} total)
-  </p>
-{pins.length > 0 && (
-    <div>
-      <h3 className="text-2xl font-black mb-6 flex items-center gap-2">
-        📋 Active Lighting Zones ({pins.length})
-      </h3>
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-        {pins.map((pin, i) => (
-          <div
-            key={i}
-            className="p-6 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl border-2 border-blue-200 shadow-lg hover:shadow-xl transition-all hover:scale-102"
-          >
-          <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center text-white font-black text-xl mb-4 mx-auto shadow-2xl">
-            {pin.name.slice(0, 3)}
-          </div>
-          <h4 className="font-black text-xl mb-2 text-gray-900 text-center">{pin.name}</h4>
-          <div className="flex justify-center gap-4 text-sm text-blue-700 font-mono bg-white/50 px-4 py-2 rounded-xl">
-            <span>X: {pin.x_percent}%</span>
-            <span>Y: {pin.y_percent}%</span>
-          </div>
-        </div>
-      ))}
-    </div>
-  </div>
-)}
- {!selectedProject && projects.length === 0 && (
-          <div className="text-center py-32">
-            <h2 className="text-3xl font-black mb-4 text-gray-600">No inspections</h2>
-            <p className="text-xl text-gray-500 mb-8">Create first inspection in Supabase</p>
+            ))}
+
+            {projects.length === 0 && (
+              <p className="col-span-full rounded-xl border border-dashed border-gray-300 bg-white p-8 text-center text-gray-500">
+                No projects found. Create one from the dashboard.
+              </p>
+            )}
           </div>
         )}
       </div>
     </div>
   );
 }
-export default Inspections;
