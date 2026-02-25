@@ -341,7 +341,8 @@ const { error } = await supabase.from('project_areas').insert([{
       </div>
     </div>
   </div>
-
+)}
+<div>
   <p className="text-center mt-6 text-lg font-semibold text-gray-700">
     Click building areas to create lighting zone pins ({pins.length} total)
   </p>
