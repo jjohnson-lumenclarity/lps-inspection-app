@@ -1,8 +1,10 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
 import { createClient } from '@/utils/supabase/client';
+
+const FALLBACK_IMAGE = 'https://via.placeholder.com/1200x800/4F46E5/FFFFFF?text=Upload+Project+Photo';
 
 type ProjectArea = {
   id?: string;
@@ -26,6 +28,7 @@ export default function InspectionsPage() {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [pins, setPins] = useState<ProjectArea[]>([]);
   const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [selectedFiles, setSelectedFiles] = useState<Record<string, File | null>>({});
   const [uploadingId, setUploadingId] = useState<string | null>(null);
 
@@ -55,11 +58,13 @@ export default function InspectionsPage() {
       const nextProjects = (data as Project[]) || [];
       setProjects(nextProjects);
 
-      if (selectedProject) {
-        const freshSelected = nextProjects.find((project) => project.id === selectedProject.id) || null;
-        setSelectedProject(freshSelected);
+      setSelectedProject((currentSelected) => {
+        if (!currentSelected) return currentSelected;
+
+        const freshSelected = nextProjects.find((project) => project.id === currentSelected.id) || null;
         setPins(freshSelected?.project_areas || []);
-      }
+        return freshSelected;
+      });
     } catch (error) {
       console.error('Unexpected error loading projects:', error);
       setErrorMessage('Could not load projects. Please refresh and try again.');
@@ -68,31 +73,11 @@ export default function InspectionsPage() {
     } finally {
       setLoading(false);
     }
-  }, [selectedProject]);
+  }, []);
 
   useEffect(() => {
     void fetchProjects();
-  }, []);
-
-  const projectPhoto = useMemo(() => {
-    return selectedProject?.photo_url || 'https://via.placeholder.com/1200x800/4F46E5/FFFFFF?text=Upload+Project+Photo';
-  }, [selectedProject]);
-
-  const fetchProjects = async () => {
-    setLoading(true);
-    const supabase = createClient();
-    const { data, error } = await supabase
-      .from('projects')
-      .select('*, project_areas(id, name, x_percent, y_percent)')
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      console.error('Error loading projects:', error);
-    }
-
-    setProjects((data as Project[]) || []);
-    setLoading(false);
-  };
+  }, [fetchProjects]);
 
   const handleSelectProject = (project: Project) => {
     setSelectedProject(project);
@@ -201,6 +186,10 @@ export default function InspectionsPage() {
     <div className="min-h-screen bg-slate-50 p-4 sm:p-8">
       <div className="mx-auto max-w-7xl space-y-8">
         <h1 className="text-3xl font-bold text-gray-900">Inspections</h1>
+
+        {errorMessage && (
+          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{errorMessage}</div>
+        )}
 
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
           {projects.map((project) => (
