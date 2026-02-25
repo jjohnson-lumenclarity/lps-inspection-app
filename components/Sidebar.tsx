@@ -1,4 +1,5 @@
 'use client';
+
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -16,26 +17,31 @@ export default function Sidebar() {
     { icon: '⚙️', label: 'Settings', href: '/settings' },
   ];
 
-   return (
+  return (
     <>
       <button
-        onClick={() => setOpen(!open)}
- style={{
-  display: 'flex',
-  alignItems: 'center',
-  gap: '14px',
-  padding: '14px 16px',
-  borderRadius: '12px',
-  color: '#f9fafb',
-  background: '#1e293b',
-  border: 'none',
-  cursor: 'pointer',
-  textAlign: 'left',
-  fontSize: '16px',
-  fontWeight: '600',
-  fontFamily: 'Inter, sans-serif',
-}}
-
+        aria-label={open ? 'Close menu' : 'Open menu'}
+        onClick={() => setOpen((prev) => !prev)}
+        style={{
+          position: 'fixed',
+          top: '16px',
+          left: '16px',
+          zIndex: 1001,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '14px',
+          padding: '10px 14px',
+          borderRadius: '12px',
+          color: '#f9fafb',
+          background: '#1e293b',
+          border: 'none',
+          cursor: 'pointer',
+          textAlign: 'left',
+          fontSize: '20px',
+          fontWeight: '600',
+          fontFamily: 'Inter, sans-serif',
+          boxShadow: '0 4px 10px rgba(0,0,0,0.2)',
+        }}
       >
         {open ? '✕' : '☰'}
       </button>
@@ -96,44 +102,42 @@ export default function Sidebar() {
           </p>
         </div>
 
-       <nav style={{ flex: 1, padding: '16px 12px' }}>
-  {menuItems.map((item) => {
-  const isActive = currentPath === item.href;
-  return (
-    <Link
-      key={item.href}
-      href={item.href}
-      onClick={() => setOpen(false)}
-  style={{
-  display: 'flex',
-  alignItems: 'center',
-  gap: '14px',
-  padding: '14px 16px',
-  borderRadius: '12px',
-  marginBottom: '4px',
-  color: item.href === '/' ? '#ffffff' : item.href === '/inspections' ? '#ffffff' : item.href === '/settings' ? '#ffffff' : '#f9fafb',
-  background: item.href === '/' ? '#3b82f6' : item.href === '/inspections' ? '#3b82f6' : item.href === '/settings' ? '#3b82f6' : 'transparent',
-  textDecoration: 'none',
-  fontSize: '16px',
-  fontWeight: '600',
-  fontFamily: 'Inter, -apple-system, sans-serif',
-  transition: 'all 0.2s',
-}}
-
-      onMouseEnter={(e) => {
-  if (currentPath !== item.href) e.currentTarget.style.background = '#374151';
-}}
-onMouseLeave={(e) => {
-  if (currentPath !== item.href) e.currentTarget.style.background = 'transparent';
-}}
-    >
-      <span style={{ fontSize: '20px' }}>{item.icon}</span>
-      {item.label}
-    </Link>
-  );
-})}
-
-</nav>
+        <nav style={{ flex: 1, padding: '16px 12px' }}>
+          {menuItems.map((item) => {
+            const isActive = currentPath === item.href;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={() => setOpen(false)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '14px',
+                  padding: '14px 16px',
+                  borderRadius: '12px',
+                  marginBottom: '4px',
+                  color: '#f9fafb',
+                  background: isActive ? '#3b82f6' : 'transparent',
+                  textDecoration: 'none',
+                  fontSize: '16px',
+                  fontWeight: '600',
+                  fontFamily: 'Inter, -apple-system, sans-serif',
+                  transition: 'all 0.2s',
+                }}
+                onMouseEnter={(e) => {
+                  if (!isActive) e.currentTarget.style.background = '#374151';
+                }}
+                onMouseLeave={(e) => {
+                  if (!isActive) e.currentTarget.style.background = 'transparent';
+                }}
+              >
+                <span style={{ fontSize: '20px' }}>{item.icon}</span>
+                {item.label}
+              </Link>
+            );
+          })}
+        </nav>
 
         <div
           style={{

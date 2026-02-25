@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 
 type Inspection = {
@@ -22,19 +22,18 @@ export default function ProjectDetail() {
     roof: '', siding: '', windows: '', notes: ''
   });
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [selectedPhotos, setSelectedPhotos] = useState<File[]>([]);
   const [saved, setSaved] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    fetchInspections();
-  }, [projectId]);
-
-  const fetchInspections = async () => {
+  const fetchInspections = useCallback(async () => {
     const res = await fetch(`/api/projects/${projectId}/inspections`);
     const data = await res.json();
     setInspections(data);
-  };
+  }, [projectId]);
+
+  useEffect(() => {
+    void fetchInspections();
+  }, [fetchInspections]);
 
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement | HTMLTextAreaElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
