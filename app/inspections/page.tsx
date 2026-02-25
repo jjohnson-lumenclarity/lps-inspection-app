@@ -242,7 +242,7 @@ export default function InspectionsPage() {
             </div>
 
             <div
-              className="relative h-[70vh] w-full cursor-crosshair overflow-hidden rounded-xl border-2 border-dashed border-blue-300 bg-cover bg-center"
+              className="relative h-[45vh] md:h-[55vh] w-full cursor-crosshair overflow-hidden rounded-xl border-2 border-dashed border-blue-300 bg-cover bg-center"
               style={{ backgroundImage: `url(${projectPhoto})` }}
               onClick={handleImageClick}
             >
