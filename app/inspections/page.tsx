@@ -33,24 +33,9 @@ export default function InspectionsPage() {
     void fetchProjects();
   }, []);
 
-  useEffect(() => {
-    const onEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setSelectedProject(null);
-        setPins([]);
-      }
-    };
-
-    window.addEventListener('keydown', onEscape);
-    return () => window.removeEventListener('keydown', onEscape);
-  }, []);
-
-  const projectPhoto = useMemo(
-    () =>
-      selectedProject?.photo_url ||
-      'https://via.placeholder.com/1200x800/4F46E5/FFFFFF?text=Upload+Project+Photo',
-    [selectedProject],
-  );
+  const projectPhoto = useMemo(() => {
+    return selectedProject?.photo_url || 'https://via.placeholder.com/1200x800/4F46E5/FFFFFF?text=Upload+Project+Photo';
+  }, [selectedProject]);
 
   const fetchProjects = async () => {
     setLoading(true);
@@ -71,12 +56,6 @@ export default function InspectionsPage() {
   const handleSelectProject = (project: Project) => {
     setSelectedProject(project);
     setPins(project.project_areas || []);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  const clearSelection = () => {
-    setSelectedProject(null);
-    setPins([]);
   };
 
   const handleFileChange = (projectId: string, file: File | null) => {
@@ -96,7 +75,8 @@ export default function InspectionsPage() {
 
     setProjects((prev) => prev.filter((p) => p.id !== projectId));
     if (selectedProject?.id === projectId) {
-      clearSelection();
+      setSelectedProject(null);
+      setPins([]);
     }
   };
 
@@ -124,7 +104,9 @@ export default function InspectionsPage() {
 
       const { photo_url } = (await response.json()) as { photo_url: string };
 
-      setProjects((prev) => prev.map((p) => (p.id === project.id ? { ...p, photo_url } : p)));
+      setProjects((prev) =>
+        prev.map((p) => (p.id === project.id ? { ...p, photo_url } : p)),
+      );
 
       if (selectedProject?.id === project.id) {
         setSelectedProject((prev) => (prev ? { ...prev, photo_url } : prev));
@@ -165,7 +147,8 @@ export default function InspectionsPage() {
       return;
     }
 
-    setPins((prev) => [...prev.slice(0, -1), data as ProjectArea]);
+    const savedPin = data as ProjectArea;
+    setPins((prev) => [...prev.slice(0, -1), savedPin]);
   };
 
   if (loading) {
@@ -173,76 +156,15 @@ export default function InspectionsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 p-4 pt-20 sm:p-8 sm:pt-24">
+    <div className="min-h-screen bg-slate-50 p-4 sm:p-8">
       <div className="mx-auto max-w-7xl space-y-8">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h1 className="text-3xl font-bold text-gray-900">Inspections</h1>
-          {selectedProject && (
-            <button
-              type="button"
-              className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white"
-              onClick={clearSelection}
-            >
-              Back to project list
-            </button>
-          )}
-        </div>
-
-        {selectedProject && (
-          <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
-            <div className="mb-4 flex items-center justify-between gap-3">
-              <div>
-                <h2 className="text-2xl font-semibold text-gray-900">{selectedProject.title}</h2>
-                <p className="text-gray-600">{selectedProject.address}</p>
-              </div>
-              <button
-                type="button"
-                className="rounded bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700"
-                onClick={clearSelection}
-              >
-                Close
-              </button>
-            </div>
-
-            <div
-              className="relative h-[45vh] w-full cursor-crosshair overflow-hidden rounded-xl border-2 border-dashed border-blue-300 bg-slate-100 md:h-[55vh]"
-              onClick={handleImageClick}
-            >
-              <Image src={projectPhoto} alt={`${selectedProject.title} inspection`} fill className="object-contain" unoptimized />
-              {pins.map((pin, index) => (
-                <div
-                  key={pin.id || `${pin.name}-${index}`}
-                  className="absolute flex h-10 w-10 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 border-white bg-red-500 text-xs font-bold text-white shadow"
-                  style={{ left: `${pin.x_percent}%`, top: `${pin.y_percent}%` }}
-                  title={`${pin.name} (${pin.x_percent}, ${pin.y_percent})`}
-                >
-                  {pin.name.slice(0, 3).toUpperCase()}
-                </div>
-              ))}
-            </div>
-
-            <p className="mt-3 text-sm text-gray-600">Click anywhere on the photo to add a lighting zone pin.</p>
-
-            {pins.length > 0 && (
-              <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
-                {pins.map((pin, index) => (
-                  <div key={pin.id || `${pin.name}-list-${index}`} className="rounded-lg border border-gray-200 p-3">
-                    <p className="font-medium text-gray-900">{pin.name}</p>
-                    <p className="text-sm text-gray-600">
-                      X: {pin.x_percent}% • Y: {pin.y_percent}%
-                    </p>
-                  </div>
-                ))}
-              </div>
-            )}
-          </section>
-        )}
+        <h1 className="text-3xl font-bold text-gray-900">Inspections</h1>
 
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
           {projects.map((project) => (
             <div
               key={project.id}
-              className="cursor-pointer rounded-xl border border-gray-200 bg-white p-5 shadow-sm"
+              className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm cursor-pointer"
               onClick={() => handleSelectProject(project)}
             >
               <h2 className="text-lg font-semibold text-gray-900">{project.title}</h2>
@@ -251,7 +173,13 @@ export default function InspectionsPage() {
 
               {project.photo_url && (
                 <div className="relative mt-3 h-44 w-full overflow-hidden rounded-lg">
-                  <Image src={project.photo_url} alt={`${project.title} photo`} fill unoptimized className="object-cover" />
+                  <Image
+                    src={project.photo_url}
+                    alt={`${project.title} photo`}
+                    fill
+                    unoptimized
+                    className="object-cover"
+                  />
                 </div>
               )}
 
@@ -293,6 +221,59 @@ export default function InspectionsPage() {
             <p className="col-span-full text-center text-gray-500">No projects found. Create one from the dashboard.</p>
           )}
         </div>
+
+        {selectedProject && (
+          <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-semibold text-gray-900">{selectedProject.title}</h2>
+                <p className="text-gray-600">{selectedProject.address}</p>
+              </div>
+              <button
+                type="button"
+                className="rounded bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700"
+                onClick={() => {
+                  setSelectedProject(null);
+                  setPins([]);
+                }}
+              >
+                Close
+              </button>
+            </div>
+
+            <div
+              className="relative h-[45vh] md:h-[55vh] w-full cursor-crosshair overflow-hidden rounded-xl border-2 border-dashed border-blue-300 bg-cover bg-center"
+              style={{ backgroundImage: `url(${projectPhoto})` }}
+              onClick={handleImageClick}
+            >
+              {pins.map((pin, index) => (
+                <div
+                  key={pin.id || `${pin.name}-${index}`}
+                  className="absolute flex h-10 w-10 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 border-white bg-red-500 text-xs font-bold text-white"
+                  style={{ left: `${pin.x_percent}%`, top: `${pin.y_percent}%` }}
+                  title={`${pin.name} (${pin.x_percent}, ${pin.y_percent})`}
+                >
+                  {pin.name.slice(0, 3).toUpperCase()}
+                </div>
+              ))}
+            </div>
+
+            <p className="mt-3 text-sm text-gray-600">Click anywhere on the photo to add a lighting zone pin.</p>
+
+            {pins.length > 0 && (
+              <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+                {pins.map((pin, index) => (
+                  <div key={pin.id || `${pin.name}-list-${index}`} className="rounded-lg border border-gray-200 p-3">
+                    <p className="font-medium text-gray-900">{pin.name}</p>
+                    <p className="text-sm text-gray-600">
+                      X: {pin.x_percent}% • Y: {pin.y_percent}%
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
       </div>
     </div>
   );
