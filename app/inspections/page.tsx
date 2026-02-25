@@ -14,7 +14,7 @@ export default function Inspections() {
     fetchProjects();
   }, []);
 
-  const handleFileChange = (project_id: string, e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = (projectId: string, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       setSelectedFiles(prev => ({ ...prev, [project_id]: file }));
@@ -26,7 +26,8 @@ export default function Inspections() {
     alert('Edit coming soon!');
   };
 
-  const handleDelete = async (project_id: string) => {
+  const handleDelete = async (projectId: string) => {
+formData.append('projectId', project.id);
     if (!confirm('Delete this project?')) return;
     try {
       await fetch(`/api/projects/${project_id}`, { method: 'DELETE' });
