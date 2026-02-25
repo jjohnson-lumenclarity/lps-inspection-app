@@ -29,6 +29,47 @@ export default function InspectionsPage() {
   const [selectedFiles, setSelectedFiles] = useState<Record<string, File | null>>({});
   const [uploadingId, setUploadingId] = useState<string | null>(null);
 
+  const projectPhoto = useMemo(() => selectedProject?.photo_url || FALLBACK_IMAGE, [selectedProject]);
+
+  const clearSelection = () => {
+    setSelectedProject(null);
+    setPins([]);
+  };
+
+  const fetchProjects = useCallback(async () => {
+    setLoading(true);
+    setErrorMessage(null);
+
+    try {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from('projects')
+        .select('*, project_areas(id, name, x_percent, y_percent)')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error loading projects:', error);
+        setErrorMessage('Could not load projects. Please refresh and try again.');
+      }
+
+      const nextProjects = (data as Project[]) || [];
+      setProjects(nextProjects);
+
+      if (selectedProject) {
+        const freshSelected = nextProjects.find((project) => project.id === selectedProject.id) || null;
+        setSelectedProject(freshSelected);
+        setPins(freshSelected?.project_areas || []);
+      }
+    } catch (error) {
+      console.error('Unexpected error loading projects:', error);
+      setErrorMessage('Could not load projects. Please refresh and try again.');
+      setProjects([]);
+      clearSelection();
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedProject]);
+
   useEffect(() => {
     void fetchProjects();
   }, []);
@@ -115,6 +156,7 @@ export default function InspectionsPage() {
       setSelectedFiles((prev) => ({ ...prev, [project.id]: null }));
     } catch (error) {
       console.error('Upload failed:', error);
+      window.alert('Upload failed. Please try again.');
     } finally {
       setUploadingId(null);
     }

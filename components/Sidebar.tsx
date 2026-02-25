@@ -53,7 +53,7 @@ export default function Sidebar() {
             position: 'fixed',
             inset: 0,
             background: 'rgba(0,0,0,0.4)',
-            zIndex: 998,
+            zIndex: 4998,
           }}
         />
       )}
@@ -66,7 +66,7 @@ export default function Sidebar() {
           width: '260px',
           height: '100vh',
           background: '#1F2937',
-          zIndex: 999,
+          zIndex: 4999,
           transition: 'left 0.3s ease',
           display: 'flex',
           flexDirection: 'column',
