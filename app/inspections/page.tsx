@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
 import { createClient } from '@/utils/supabase/client';
 
+const FALLBACK_IMAGE = 'https://via.placeholder.com/1200x800/4F46E5/FFFFFF?text=Upload+Project+Photo';
+
 type ProjectArea = {
   id?: string;
   name: string;
@@ -292,6 +294,10 @@ export default function InspectionsPage() {
                 projectPhoto ? 'cursor-crosshair bg-cover' : 'bg-slate-100'
               }`}
               style={photoPanelStyle}
+              className={`relative h-[45vh] w-full overflow-hidden rounded-xl border-2 border-dashed border-blue-300 bg-center md:h-[55vh] ${
+                projectPhoto ? 'cursor-crosshair bg-cover' : 'bg-slate-100'
+              }`}
+              style={projectPhoto ? { backgroundImage: `url(${projectPhoto})` } : undefined}
               onClick={projectPhoto ? handleImageClick : undefined}
             >
               {projectPhoto ? (
