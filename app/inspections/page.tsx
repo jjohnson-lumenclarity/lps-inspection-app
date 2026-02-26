@@ -51,6 +51,21 @@ export default function InspectionsPage() {
         }
       : { backgroundColor: '#f1f5f9' }),
   }), [projectPhoto]);
+  const photoPanelStyle = useMemo<React.CSSProperties>(
+    () => ({
+      minHeight: '260px',
+      height: 'clamp(260px, 38vh, 420px)',
+      ...(projectPhoto
+        ? {
+            backgroundImage: `url(${projectPhoto})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            backgroundRepeat: 'no-repeat',
+          }
+        : { backgroundColor: '#f1f5f9' }),
+    }),
+    [projectPhoto],
+  );
 
   const clearSelection = () => {
     setSelectedProject(null);
@@ -148,9 +163,7 @@ export default function InspectionsPage() {
 
       const { photo_url } = (await response.json()) as { photo_url: string };
 
-      setProjects((prev) =>
-        prev.map((p) => (p.id === project.id ? { ...p, photo_url } : p)),
-      );
+      setProjects((prev) => prev.map((p) => (p.id === project.id ? { ...p, photo_url } : p)));
 
       if (selectedProject?.id === project.id) {
         setSelectedProject((prev) => (prev ? { ...prev, photo_url } : prev));
@@ -229,6 +242,7 @@ export default function InspectionsPage() {
               {project.photo_url && (
                 <div
                   className="relative mt-4 h-44 w-full overflow-hidden rounded-xl"
+                  className="relative mt-3 h-44 w-full overflow-hidden rounded-lg"
                   style={{ position: 'relative', height: '11rem', width: '100%', overflow: 'hidden', borderRadius: '0.5rem' }}
                 >
                   <Image
