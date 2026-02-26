@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createClient } from '@/utils/supabase/client';
 
 type ProjectArea = {
@@ -21,20 +22,82 @@ type Project = {
   project_areas?: ProjectArea[];
 };
 
+type AreaPhoto = {
+  id: string;
+  area_id: string;
+  photo_url: string;
+  created_at?: string;
+};
+
+const statusBadgeClasses: Record<string, string> = {
+  active: 'bg-emerald-100 text-emerald-700',
+  'in progress': 'bg-amber-100 text-amber-700',
+  completed: 'bg-slate-200 text-slate-700',
+};
+
 export default function InspectionsPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [pins, setPins] = useState<ProjectArea[]>([]);
   const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [selectedFiles, setSelectedFiles] = useState<Record<string, File | null>>({});
   const [uploadingId, setUploadingId] = useState<string | null>(null);
+  const [projectSearch, setProjectSearch] = useState('');
+  const [areaPhotosByZone, setAreaPhotosByZone] = useState<Record<string, AreaPhoto[]>>({});
+  const [selectedZoneFiles, setSelectedZoneFiles] = useState<Record<string, File | null>>({});
+  const [uploadingZoneId, setUploadingZoneId] = useState<string | null>(null);
+  const [zonePhotoFeatureEnabled, setZonePhotoFeatureEnabled] = useState(true);
 
-  const projectPhoto = useMemo(() => selectedProject?.photo_url || FALLBACK_IMAGE, [selectedProject]);
+  const projectPhoto = useMemo(() => selectedProject?.photo_url ?? null, [selectedProject]);
+
+  const photoPanelStyle = useMemo<React.CSSProperties>(() => ({
+    minHeight: '260px',
+    height: 'clamp(260px, 38vh, 420px)',
+    ...(projectPhoto
+      ? {
+          backgroundImage: `url(${projectPhoto})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat',
+        }
+      : { backgroundColor: '#f1f5f9' }),
+  }), [projectPhoto]);
 
   const clearSelection = () => {
     setSelectedProject(null);
     setPins([]);
+    setAreaPhotosByZone({});
   };
+
+  const fetchZonePhotos = useCallback(async (areas: ProjectArea[]) => {
+    const areaIds = areas.map((area) => area.id).filter(Boolean) as string[];
+    if (areaIds.length === 0) {
+      setAreaPhotosByZone({});
+      return;
+    }
+
+    const supabase = createClient();
+    const { data, error } = await supabase
+      .from('area_photos')
+      .select('id, area_id, photo_url, created_at')
+      .in('area_id', areaIds)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.warn('Area photo table unavailable or query failed:', error.message);
+      setZonePhotoFeatureEnabled(false);
+      setAreaPhotosByZone({});
+      return;
+    }
+
+    setZonePhotoFeatureEnabled(true);
+    const grouped = (data as AreaPhoto[]).reduce<Record<string, AreaPhoto[]>>((acc, photo) => {
+      acc[photo.area_id] = [...(acc[photo.area_id] || []), photo];
+      return acc;
+    }, {});
+    setAreaPhotosByZone(grouped);
+  }, []);
 
   const fetchProjects = useCallback(async () => {
     setLoading(true);
@@ -55,11 +118,15 @@ export default function InspectionsPage() {
       const nextProjects = (data as Project[]) || [];
       setProjects(nextProjects);
 
-      if (selectedProject) {
-        const freshSelected = nextProjects.find((project) => project.id === selectedProject.id) || null;
-        setSelectedProject(freshSelected);
-        setPins(freshSelected?.project_areas || []);
-      }
+      setSelectedProject((currentSelected) => {
+        if (!currentSelected) return currentSelected;
+
+        const freshSelected = nextProjects.find((project) => project.id === currentSelected.id) || null;
+        const nextAreas = freshSelected?.project_areas || [];
+        setPins(nextAreas);
+        void fetchZonePhotos(nextAreas);
+        return freshSelected;
+      });
     } catch (error) {
       console.error('Unexpected error loading projects:', error);
       setErrorMessage('Could not load projects. Please refresh and try again.');
@@ -68,35 +135,17 @@ export default function InspectionsPage() {
     } finally {
       setLoading(false);
     }
-  }, [selectedProject]);
+  }, [fetchZonePhotos]);
 
   useEffect(() => {
     void fetchProjects();
-  }, []);
-
-  const projectPhoto = useMemo(() => {
-    return selectedProject?.photo_url || 'https://via.placeholder.com/1200x800/4F46E5/FFFFFF?text=Upload+Project+Photo';
-  }, [selectedProject]);
-
-  const fetchProjects = async () => {
-    setLoading(true);
-    const supabase = createClient();
-    const { data, error } = await supabase
-      .from('projects')
-      .select('*, project_areas(id, name, x_percent, y_percent)')
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      console.error('Error loading projects:', error);
-    }
-
-    setProjects((data as Project[]) || []);
-    setLoading(false);
-  };
+  }, [fetchProjects]);
 
   const handleSelectProject = (project: Project) => {
     setSelectedProject(project);
-    setPins(project.project_areas || []);
+    const nextAreas = project.project_areas || [];
+    setPins(nextAreas);
+    void fetchZonePhotos(nextAreas);
   };
 
   const handleFileChange = (projectId: string, file: File | null) => {
@@ -116,8 +165,7 @@ export default function InspectionsPage() {
 
     setProjects((prev) => prev.filter((p) => p.id !== projectId));
     if (selectedProject?.id === projectId) {
-      setSelectedProject(null);
-      setPins([]);
+      clearSelection();
     }
   };
 
@@ -193,6 +241,65 @@ export default function InspectionsPage() {
     setPins((prev) => [...prev.slice(0, -1), savedPin]);
   };
 
+  const handleZoneFileChange = (zoneId: string, file: File | null) => {
+    setSelectedZoneFiles((prev) => ({ ...prev, [zoneId]: file }));
+  };
+
+  const handleZonePhotoUpload = async (zoneId: string) => {
+    const file = selectedZoneFiles[zoneId];
+    if (!file) return;
+
+    setUploadingZoneId(zoneId);
+    const supabase = createClient();
+
+    try {
+      const ext = file.name.split('.').pop() || 'jpg';
+      const path = `zone-photos/${zoneId}/${Date.now()}.${ext}`;
+
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('project-media')
+        .upload(path, file, { cacheControl: '3600', upsert: true });
+
+      if (uploadError) {
+        window.alert(`Zone photo upload failed: ${uploadError.message}`);
+        return;
+      }
+
+      const { data: publicUrlData } = supabase.storage.from('project-media').getPublicUrl(uploadData.path);
+      const photo_url = publicUrlData.publicUrl;
+
+      const { data, error } = await supabase
+        .from('area_photos')
+        .insert([{ area_id: zoneId, photo_url }])
+        .select('id, area_id, photo_url, created_at')
+        .single();
+
+      if (error) {
+        setZonePhotoFeatureEnabled(false);
+        window.alert('Zone photo table is not ready yet. Ask admin to create table area_photos.');
+        return;
+      }
+
+      setZonePhotoFeatureEnabled(true);
+      const savedPhoto = data as AreaPhoto;
+      setAreaPhotosByZone((prev) => ({
+        ...prev,
+        [zoneId]: [savedPhoto, ...(prev[zoneId] || [])],
+      }));
+      setSelectedZoneFiles((prev) => ({ ...prev, [zoneId]: null }));
+    } finally {
+      setUploadingZoneId(null);
+    }
+  };
+
+  const filteredProjects = useMemo(() => {
+    const term = projectSearch.trim().toLowerCase();
+    if (!term) return projects;
+    return projects.filter((project) =>
+      [project.title, project.address, project.description].join(' ').toLowerCase().includes(term),
+    );
+  }, [projects, projectSearch]);
+
   if (loading) {
     return <div className="p-8 text-center text-xl font-semibold text-gray-500">Loading inspections...</div>;
   }
@@ -202,30 +309,58 @@ export default function InspectionsPage() {
       <div className="mx-auto max-w-7xl space-y-8">
         <h1 className="text-3xl font-bold text-gray-900">Inspections</h1>
 
+        {errorMessage && (
+          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{errorMessage}</div>
+        )}
+
+        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <label htmlFor="project-search" className="mb-2 block text-sm font-medium text-slate-700">
+            Search building / address
+          </label>
+          <input
+            id="project-search"
+            type="text"
+            value={projectSearch}
+            onChange={(e) => setProjectSearch(e.target.value)}
+            placeholder="Start typing building name or address..."
+            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+          />
+        </div>
+
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
-          {projects.map((project) => (
+          {filteredProjects.map((project) => (
             <div
               key={project.id}
-              className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm cursor-pointer"
+              className="cursor-pointer rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-md"
               onClick={() => handleSelectProject(project)}
             >
-              <h2 className="text-lg font-semibold text-gray-900">{project.title}</h2>
-              <p className="text-sm text-gray-600">{project.description}</p>
-              <p className="mt-1 text-sm text-gray-500">📍 {project.address}</p>
+              <h2 className="text-3xl font-bold tracking-tight text-slate-900">{project.title}</h2>
+              <p className="mt-2 text-2xl text-slate-600">{project.description}</p>
+              <p className="mt-2 text-xl text-slate-700">📍 {project.address}</p>
+
+              <span
+                className={`mt-4 inline-flex rounded-full px-4 py-1 text-lg font-semibold ${statusBadgeClasses[project.status.toLowerCase()] ?? 'bg-blue-100 text-blue-700'}`}
+              >
+                {project.status}
+              </span>
 
               {project.photo_url && (
-                <div className="relative mt-3 h-44 w-full overflow-hidden rounded-lg">
+                <div
+                  className="relative mt-4 h-44 w-full overflow-hidden rounded-xl"
+                  style={{ position: 'relative', height: '11rem', width: '100%', overflow: 'hidden', borderRadius: '0.5rem' }}
+                >
                   <Image
                     src={project.photo_url}
                     alt={`${project.title} photo`}
                     fill
                     unoptimized
                     className="object-cover"
+                    style={{ objectFit: 'cover' }}
                   />
                 </div>
               )}
 
-              <div className="mt-3 flex items-center gap-2">
+              <div className="mt-4 flex items-center gap-2">
                 <input
                   type="file"
                   accept="image/*"
@@ -244,7 +379,7 @@ export default function InspectionsPage() {
                 </button>
               </div>
 
-              <div className="mt-3 flex gap-2">
+              <div className="mt-4 flex gap-2">
                 <button
                   type="button"
                   className="rounded bg-red-600 px-3 py-2 text-sm font-medium text-white"
@@ -259,59 +394,121 @@ export default function InspectionsPage() {
             </div>
           ))}
 
-          {projects.length === 0 && (
-            <p className="col-span-full text-center text-gray-500">No projects found. Create one from the dashboard.</p>
+          {filteredProjects.length === 0 && (
+            <p className="col-span-full text-center text-gray-500">No matching projects found.</p>
           )}
         </div>
 
         {selectedProject && (
           <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-            <div className="mb-4 flex items-center justify-between">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h2 className="text-2xl font-semibold text-gray-900">{selectedProject.title}</h2>
                 <p className="text-gray-600">{selectedProject.address}</p>
               </div>
-              <button
-                type="button"
-                className="rounded bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700"
-                onClick={() => {
-                  setSelectedProject(null);
-                  setPins([]);
-                }}
-              >
-                Close
-              </button>
+              <div className="flex gap-2">
+                <Link
+                  href={`/inspections/${selectedProject.id}`}
+                  className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white"
+                >
+                  Quote Summary
+                </Link>
+                <button
+                  type="button"
+                  className="rounded bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700"
+                  onClick={clearSelection}
+                >
+                  Close
+                </button>
+              </div>
             </div>
 
             <div
-              className="relative h-[45vh] md:h-[55vh] w-full cursor-crosshair overflow-hidden rounded-xl border-2 border-dashed border-blue-300 bg-cover bg-center"
-              style={{ backgroundImage: `url(${projectPhoto})` }}
-              onClick={handleImageClick}
+              className={`relative w-full overflow-hidden rounded-xl border-2 border-dashed border-blue-300 bg-center ${
+                projectPhoto ? 'cursor-crosshair bg-cover' : 'bg-slate-100'
+              }`}
+              style={photoPanelStyle}
+              onClick={projectPhoto ? handleImageClick : undefined}
             >
-              {pins.map((pin, index) => (
-                <div
-                  key={pin.id || `${pin.name}-${index}`}
-                  className="absolute flex h-10 w-10 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 border-white bg-red-500 text-xs font-bold text-white"
-                  style={{ left: `${pin.x_percent}%`, top: `${pin.y_percent}%` }}
-                  title={`${pin.name} (${pin.x_percent}, ${pin.y_percent})`}
-                >
-                  {pin.name.slice(0, 3).toUpperCase()}
+              {projectPhoto ? (
+                pins.map((pin, index) => (
+                  <div
+                    key={pin.id || `${pin.name}-${index}`}
+                    className="absolute flex h-10 w-10 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 border-white bg-red-500 text-xs font-bold text-white"
+                    style={{ left: `${pin.x_percent}%`, top: `${pin.y_percent}%` }}
+                    title={`${pin.name} (${pin.x_percent}, ${pin.y_percent})`}
+                  >
+                    {pin.name.slice(0, 3).toUpperCase()}
+                  </div>
+                ))
+              ) : (
+                <div className="flex h-full items-center justify-center px-6 text-center text-sm text-gray-600">
+                  Upload a project photo from the card above to start placing lighting zone pins.
                 </div>
-              ))}
+              )}
             </div>
 
-            <p className="mt-3 text-sm text-gray-600">Click anywhere on the photo to add a lighting zone pin.</p>
+            <p className="mt-3 text-sm text-gray-600">
+              {projectPhoto ? 'Click anywhere on the photo to add a lighting zone pin.' : 'Photo required to place pins.'}
+            </p>
+
+            {!zonePhotoFeatureEnabled && (
+              <p className="mt-3 rounded bg-amber-50 px-3 py-2 text-sm text-amber-700">
+                Zone photo uploads are disabled until the <code>area_photos</code> table is available.
+              </p>
+            )}
 
             {pins.length > 0 && (
               <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
-                {pins.map((pin, index) => (
-                  <div key={pin.id || `${pin.name}-list-${index}`} className="rounded-lg border border-gray-200 p-3">
-                    <p className="font-medium text-gray-900">{pin.name}</p>
-                    <p className="text-sm text-gray-600">
-                      X: {pin.x_percent}% • Y: {pin.y_percent}%
-                    </p>
-                  </div>
-                ))}
+                {pins.map((pin, index) => {
+                  const zonePhotos = pin.id ? areaPhotosByZone[pin.id] || [] : [];
+                  return (
+                    <div key={pin.id || `${pin.name}-list-${index}`} className="rounded-lg border border-gray-200 p-3">
+                      <p className="font-medium text-gray-900">{pin.name}</p>
+                      <p className="text-sm text-gray-600">
+                        X: {pin.x_percent}% • Y: {pin.y_percent}%
+                      </p>
+
+                      {pin.id && (
+                        <>
+                          <div className="mt-2 flex items-center gap-2">
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={(e) => handleZoneFileChange(pin.id!, e.target.files?.[0] || null)}
+                            />
+                            <button
+                              type="button"
+                              className="rounded bg-blue-600 px-3 py-1 text-xs font-semibold text-white disabled:bg-slate-300"
+                              disabled={!selectedZoneFiles[pin.id] || uploadingZoneId === pin.id || !zonePhotoFeatureEnabled}
+                              onClick={() => void handleZonePhotoUpload(pin.id!)}
+                            >
+                              {uploadingZoneId === pin.id ? 'Uploading…' : 'Add photo'}
+                            </button>
+                          </div>
+
+                          {zonePhotos.length > 0 && (
+                            <div className="mt-2 grid grid-cols-3 gap-2">
+                              {zonePhotos.map((photo) => (
+                                <a key={photo.id} href={photo.photo_url} target="_blank" rel="noreferrer">
+                                  <Image
+                                    src={photo.photo_url}
+                                    alt={`Zone ${pin.name}`}
+                                    width={100}
+                                    height={100}
+                                    unoptimized
+                                    className="h-16 w-full rounded object-cover"
+                                  />
+                                </a>
+                              ))}
+                            </div>
+                          )}
+                        </>
+                      )}
+                      {!pin.id && <p className="mt-2 text-xs text-slate-500">Save in progress…</p>}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </section>
