@@ -562,13 +562,13 @@ export default function InspectionsPage() {
                             <input
                               type="file"
                               accept="image/*"
-                              onChange={(e) => handleZoneFileChange(pin.id, e.target.files?.[0] || null)}
+                              onChange={(e) => handleZoneFileChange(pin.id!, e.target.files?.[0] || null)}
                             />
                             <button
                               type="button"
                               className="rounded bg-blue-600 px-3 py-1 text-xs font-semibold text-white disabled:bg-slate-300"
                               disabled={!selectedZoneFiles[pin.id] || uploadingZoneId === pin.id || !zonePhotoFeatureEnabled}
-                              onClick={() => void handleZonePhotoUpload(pin.id)}
+                              onClick={() => void handleZonePhotoUpload(pin.id!)}
                             >
                               {uploadingZoneId === pin.id ? 'Uploading…' : 'Add photo'}
                             </button>
