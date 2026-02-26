@@ -1,5 +1,6 @@
 'use client';
 
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -43,26 +44,24 @@ export default function InspectionsPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [selectedFiles, setSelectedFiles] = useState<Record<string, File | null>>({});
   const [uploadingId, setUploadingId] = useState<string | null>(null);
-  const [projectSearch, setProjectSearch] = useState('');
-  const [areaPhotosByZone, setAreaPhotosByZone] = useState<Record<string, AreaPhoto[]>>({});
-  const [selectedZoneFiles, setSelectedZoneFiles] = useState<Record<string, File | null>>({});
-  const [uploadingZoneId, setUploadingZoneId] = useState<string | null>(null);
-  const [zonePhotoFeatureEnabled, setZonePhotoFeatureEnabled] = useState(true);
 
   const projectPhoto = useMemo(() => selectedProject?.photo_url ?? null, [selectedProject]);
 
-  const photoPanelStyle = useMemo<React.CSSProperties>(() => ({
-    minHeight: '260px',
-    height: 'clamp(260px, 38vh, 420px)',
-    ...(projectPhoto
-      ? {
-          backgroundImage: `url(${projectPhoto})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          backgroundRepeat: 'no-repeat',
-        }
-      : { backgroundColor: '#f1f5f9' }),
-  }), [projectPhoto]);
+  const photoPanelStyle = useMemo<React.CSSProperties>(
+    () => ({
+      minHeight: '260px',
+      height: 'clamp(260px, 38vh, 420px)',
+      ...(projectPhoto
+        ? {
+            backgroundImage: `url(${projectPhoto})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            backgroundRepeat: 'no-repeat',
+          }
+        : { backgroundColor: '#f1f5f9' }),
+    }),
+    [projectPhoto],
+  );
 
   const clearSelection = () => {
     setSelectedProject(null);
@@ -122,9 +121,7 @@ export default function InspectionsPage() {
         if (!currentSelected) return currentSelected;
 
         const freshSelected = nextProjects.find((project) => project.id === currentSelected.id) || null;
-        const nextAreas = freshSelected?.project_areas || [];
-        setPins(nextAreas);
-        void fetchZonePhotos(nextAreas);
+        setPins(freshSelected?.project_areas || []);
         return freshSelected;
       });
     } catch (error) {
@@ -135,7 +132,7 @@ export default function InspectionsPage() {
     } finally {
       setLoading(false);
     }
-  }, [fetchZonePhotos]);
+  }, []);
 
   useEffect(() => {
     void fetchProjects();
@@ -193,9 +190,7 @@ export default function InspectionsPage() {
 
       const { photo_url } = (await response.json()) as { photo_url: string };
 
-      setProjects((prev) =>
-        prev.map((p) => (p.id === project.id ? { ...p, photo_url } : p)),
-      );
+      setProjects((prev) => prev.map((p) => (p.id === project.id ? { ...p, photo_url } : p)));
 
       if (selectedProject?.id === project.id) {
         setSelectedProject((prev) => (prev ? { ...prev, photo_url } : prev));
@@ -313,20 +308,6 @@ export default function InspectionsPage() {
           <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{errorMessage}</div>
         )}
 
-        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-          <label htmlFor="project-search" className="mb-2 block text-sm font-medium text-slate-700">
-            Search building / address
-          </label>
-          <input
-            id="project-search"
-            type="text"
-            value={projectSearch}
-            onChange={(e) => setProjectSearch(e.target.value)}
-            placeholder="Start typing building name or address..."
-            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-          />
-        </div>
-
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
           {filteredProjects.map((project) => (
             <div
@@ -346,7 +327,7 @@ export default function InspectionsPage() {
 
               {project.photo_url && (
                 <div
-                  className="relative mt-4 h-44 w-full overflow-hidden rounded-xl"
+                  className="relative mt-3 h-44 w-full overflow-hidden rounded-lg"
                   style={{ position: 'relative', height: '11rem', width: '100%', overflow: 'hidden', borderRadius: '0.5rem' }}
                 >
                   <Image
@@ -451,12 +432,6 @@ export default function InspectionsPage() {
             <p className="mt-3 text-sm text-gray-600">
               {projectPhoto ? 'Click anywhere on the photo to add a lighting zone pin.' : 'Photo required to place pins.'}
             </p>
-
-            {!zonePhotoFeatureEnabled && (
-              <p className="mt-3 rounded bg-amber-50 px-3 py-2 text-sm text-amber-700">
-                Zone photo uploads are disabled until the <code>area_photos</code> table is available.
-              </p>
-            )}
 
             {pins.length > 0 && (
               <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
