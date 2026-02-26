@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
 import { createClient } from '@/utils/supabase/client';
 
@@ -21,15 +21,36 @@ type Project = {
   project_areas?: ProjectArea[];
 };
 
+
+const statusBadgeClasses: Record<string, string> = {
+  active: 'bg-emerald-100 text-emerald-700',
+  'in progress': 'bg-amber-100 text-amber-700',
+  completed: 'bg-slate-200 text-slate-700',
+};
+
 export default function InspectionsPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [pins, setPins] = useState<ProjectArea[]>([]);
   const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [selectedFiles, setSelectedFiles] = useState<Record<string, File | null>>({});
   const [uploadingId, setUploadingId] = useState<string | null>(null);
 
-  const projectPhoto = useMemo(() => selectedProject?.photo_url || FALLBACK_IMAGE, [selectedProject]);
+  const projectPhoto = useMemo(() => selectedProject?.photo_url ?? null, [selectedProject]);
+
+  const photoPanelStyle = useMemo<React.CSSProperties>(() => ({
+    minHeight: '260px',
+    height: 'clamp(260px, 38vh, 420px)',
+    ...(projectPhoto
+      ? {
+          backgroundImage: `url(${projectPhoto})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat',
+        }
+      : { backgroundColor: '#f1f5f9' }),
+  }), [projectPhoto]);
 
   const clearSelection = () => {
     setSelectedProject(null);
@@ -55,11 +76,13 @@ export default function InspectionsPage() {
       const nextProjects = (data as Project[]) || [];
       setProjects(nextProjects);
 
-      if (selectedProject) {
-        const freshSelected = nextProjects.find((project) => project.id === selectedProject.id) || null;
-        setSelectedProject(freshSelected);
+      setSelectedProject((currentSelected) => {
+        if (!currentSelected) return currentSelected;
+
+        const freshSelected = nextProjects.find((project) => project.id === currentSelected.id) || null;
         setPins(freshSelected?.project_areas || []);
-      }
+        return freshSelected;
+      });
     } catch (error) {
       console.error('Unexpected error loading projects:', error);
       setErrorMessage('Could not load projects. Please refresh and try again.');
@@ -68,31 +91,11 @@ export default function InspectionsPage() {
     } finally {
       setLoading(false);
     }
-  }, [selectedProject]);
+  }, []);
 
   useEffect(() => {
     void fetchProjects();
-  }, []);
-
-  const projectPhoto = useMemo(() => {
-    return selectedProject?.photo_url || 'https://via.placeholder.com/1200x800/4F46E5/FFFFFF?text=Upload+Project+Photo';
-  }, [selectedProject]);
-
-  const fetchProjects = async () => {
-    setLoading(true);
-    const supabase = createClient();
-    const { data, error } = await supabase
-      .from('projects')
-      .select('*, project_areas(id, name, x_percent, y_percent)')
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      console.error('Error loading projects:', error);
-    }
-
-    setProjects((data as Project[]) || []);
-    setLoading(false);
-  };
+  }, [fetchProjects]);
 
   const handleSelectProject = (project: Project) => {
     setSelectedProject(project);
@@ -202,30 +205,44 @@ export default function InspectionsPage() {
       <div className="mx-auto max-w-7xl space-y-8">
         <h1 className="text-3xl font-bold text-gray-900">Inspections</h1>
 
+        {errorMessage && (
+          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{errorMessage}</div>
+        )}
+
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
           {projects.map((project) => (
             <div
               key={project.id}
-              className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm cursor-pointer"
+              className="cursor-pointer rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-md"
               onClick={() => handleSelectProject(project)}
             >
-              <h2 className="text-lg font-semibold text-gray-900">{project.title}</h2>
-              <p className="text-sm text-gray-600">{project.description}</p>
-              <p className="mt-1 text-sm text-gray-500">📍 {project.address}</p>
+              <h2 className="text-3xl font-bold tracking-tight text-slate-900">{project.title}</h2>
+              <p className="mt-2 text-2xl text-slate-600">{project.description}</p>
+              <p className="mt-2 text-xl text-slate-700">📍 {project.address}</p>
+
+              <span
+                className={`mt-4 inline-flex rounded-full px-4 py-1 text-lg font-semibold ${statusBadgeClasses[project.status.toLowerCase()] ?? 'bg-blue-100 text-blue-700'}`}
+              >
+                {project.status}
+              </span>
 
               {project.photo_url && (
-                <div className="relative mt-3 h-44 w-full overflow-hidden rounded-lg">
+                <div
+                  className="relative mt-4 h-44 w-full overflow-hidden rounded-xl"
+                  style={{ position: 'relative', height: '11rem', width: '100%', overflow: 'hidden', borderRadius: '0.5rem' }}
+                >
                   <Image
                     src={project.photo_url}
                     alt={`${project.title} photo`}
                     fill
                     unoptimized
                     className="object-cover"
+                    style={{ objectFit: 'cover' }}
                   />
                 </div>
               )}
 
-              <div className="mt-3 flex items-center gap-2">
+              <div className="mt-4 flex items-center gap-2">
                 <input
                   type="file"
                   accept="image/*"
@@ -244,7 +261,7 @@ export default function InspectionsPage() {
                 </button>
               </div>
 
-              <div className="mt-3 flex gap-2">
+              <div className="mt-4 flex gap-2">
                 <button
                   type="button"
                   className="rounded bg-red-600 px-3 py-2 text-sm font-medium text-white"
@@ -284,23 +301,33 @@ export default function InspectionsPage() {
             </div>
 
             <div
-              className="relative h-[45vh] md:h-[55vh] w-full cursor-crosshair overflow-hidden rounded-xl border-2 border-dashed border-blue-300 bg-cover bg-center"
-              style={{ backgroundImage: `url(${projectPhoto})` }}
-              onClick={handleImageClick}
+              className={`relative w-full overflow-hidden rounded-xl border-2 border-dashed border-blue-300 bg-center ${
+                projectPhoto ? 'cursor-crosshair bg-cover' : 'bg-slate-100'
+              }`}
+              style={photoPanelStyle}
+              onClick={projectPhoto ? handleImageClick : undefined}
             >
-              {pins.map((pin, index) => (
-                <div
-                  key={pin.id || `${pin.name}-${index}`}
-                  className="absolute flex h-10 w-10 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 border-white bg-red-500 text-xs font-bold text-white"
-                  style={{ left: `${pin.x_percent}%`, top: `${pin.y_percent}%` }}
-                  title={`${pin.name} (${pin.x_percent}, ${pin.y_percent})`}
-                >
-                  {pin.name.slice(0, 3).toUpperCase()}
+              {projectPhoto ? (
+                pins.map((pin, index) => (
+                  <div
+                    key={pin.id || `${pin.name}-${index}`}
+                    className="absolute flex h-10 w-10 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 border-white bg-red-500 text-xs font-bold text-white"
+                    style={{ left: `${pin.x_percent}%`, top: `${pin.y_percent}%` }}
+                    title={`${pin.name} (${pin.x_percent}, ${pin.y_percent})`}
+                  >
+                    {pin.name.slice(0, 3).toUpperCase()}
+                  </div>
+                ))
+              ) : (
+                <div className="flex h-full items-center justify-center px-6 text-center text-sm text-gray-600">
+                  Upload a project photo from the card above to start placing lighting zone pins.
                 </div>
-              ))}
+              )}
             </div>
 
-            <p className="mt-3 text-sm text-gray-600">Click anywhere on the photo to add a lighting zone pin.</p>
+            <p className="mt-3 text-sm text-gray-600">
+              {projectPhoto ? 'Click anywhere on the photo to add a lighting zone pin.' : 'Photo required to place pins.'}
+            </p>
 
             {pins.length > 0 && (
               <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
