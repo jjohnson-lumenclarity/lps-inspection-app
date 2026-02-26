@@ -4,8 +4,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
 import { createClient } from '@/utils/supabase/client';
 
-const FALLBACK_IMAGE = 'https://via.placeholder.com/1200x800/4F46E5/FFFFFF?text=Upload+Project+Photo';
-
 type ProjectArea = {
   id?: string;
   name: string;
@@ -33,6 +31,22 @@ export default function InspectionsPage() {
   const [uploadingId, setUploadingId] = useState<string | null>(null);
 
   const projectPhoto = useMemo(() => selectedProject?.photo_url ?? null, [selectedProject]);
+
+  const photoPanelStyle = useMemo<React.CSSProperties>(
+    () => ({
+      minHeight: '260px',
+      height: 'clamp(260px, 38vh, 420px)',
+      ...(projectPhoto
+        ? {
+            backgroundImage: `url(${projectPhoto})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            backgroundRepeat: 'no-repeat',
+          }
+        : { backgroundColor: '#f1f5f9' }),
+    }),
+    [projectPhoto],
+  );
 
   const clearSelection = () => {
     setSelectedProject(null);
@@ -130,9 +144,7 @@ export default function InspectionsPage() {
 
       const { photo_url } = (await response.json()) as { photo_url: string };
 
-      setProjects((prev) =>
-        prev.map((p) => (p.id === project.id ? { ...p, photo_url } : p)),
-      );
+      setProjects((prev) => prev.map((p) => (p.id === project.id ? { ...p, photo_url } : p)));
 
       if (selectedProject?.id === project.id) {
         setSelectedProject((prev) => (prev ? { ...prev, photo_url } : prev));
@@ -203,13 +215,17 @@ export default function InspectionsPage() {
               <p className="mt-1 text-sm text-gray-500">📍 {project.address}</p>
 
               {project.photo_url && (
-                <div className="relative mt-3 h-44 w-full overflow-hidden rounded-lg">
+                <div
+                  className="relative mt-3 h-44 w-full overflow-hidden rounded-lg"
+                  style={{ position: 'relative', height: '11rem', width: '100%', overflow: 'hidden', borderRadius: '0.5rem' }}
+                >
                   <Image
                     src={project.photo_url}
                     alt={`${project.title} photo`}
                     fill
                     unoptimized
                     className="object-cover"
+                    style={{ objectFit: 'cover' }}
                   />
                 </div>
               )}
@@ -273,10 +289,10 @@ export default function InspectionsPage() {
             </div>
 
             <div
-              className={`relative h-[45vh] w-full overflow-hidden rounded-xl border-2 border-dashed border-blue-300 bg-center md:h-[55vh] ${
+              className={`relative w-full overflow-hidden rounded-xl border-2 border-dashed border-blue-300 bg-center ${
                 projectPhoto ? 'cursor-crosshair bg-cover' : 'bg-slate-100'
               }`}
-              style={projectPhoto ? { backgroundImage: `url(${projectPhoto})` } : undefined}
+              style={photoPanelStyle}
               onClick={projectPhoto ? handleImageClick : undefined}
             >
               {projectPhoto ? (
