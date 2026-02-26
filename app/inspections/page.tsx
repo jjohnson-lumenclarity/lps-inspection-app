@@ -1,6 +1,5 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -22,6 +21,14 @@ type Project = {
   photo_url?: string | null;
   project_areas?: ProjectArea[];
 };
+
+type AreaPhoto = {
+  id: string;
+  area_id: string;
+  photo_url: string;
+  created_at?: string;
+};
+
 
 type AreaPhoto = {
   id: string;
