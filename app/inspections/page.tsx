@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
 import { createClient } from '@/utils/supabase/client';
 
+const FALLBACK_IMAGE = 'https://via.placeholder.com/1200x800/4F46E5/FFFFFF?text=Upload+Project+Photo';
+
 type ProjectArea = {
   id?: string;
   name: string;
@@ -290,6 +292,7 @@ export default function InspectionsPage() {
                     }
                   : { backgroundColor: '#f1f5f9' }),
               }}
+              style={projectPhoto ? { backgroundImage: `url(${projectPhoto})` } : undefined}
               onClick={projectPhoto ? handleImageClick : undefined}
             >
               {projectPhoto ? (
