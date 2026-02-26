@@ -339,16 +339,17 @@ export default function InspectionsPage() {
     }
 
     setPins((prev) => prev.filter((pin) => pin.id !== zone.id));
-    setAreaPhotosByZone((prev) => {
+       setAreaPhotosByZone((prev) => {
       const next = { ...prev };
-      delete next[zone.id];
+      delete next[zone.id!];
       return next;
     });
     setSelectedZoneFiles((prev) => {
       const next = { ...prev };
-      delete next[zone.id];
+      delete next[zone.id!];
       return next;
     });
+
     setSelectedProject((prev) => {
       if (!prev) return prev;
       const nextAreas = (prev.project_areas || []).filter((area) => area.id !== zone.id);
