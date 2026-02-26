@@ -2,22 +2,24 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createClient } from '@/utils/supabase/client';
+
+type ProjectArea = {
+  id?: string;
+  name: string;
+  x_percent: number;
+  y_percent: number;
+};
 
 type Project = {
   id: string;
   title: string;
+  description: string;
   address: string;
   status: string;
-};
-
-type Zone = {
-  id: string;
-  name: string;
-  x_percent: number;
-  y_percent: number;
+  photo_url?: string | null;
+  project_areas?: ProjectArea[];
 };
 
 type AreaPhoto = {
@@ -26,6 +28,7 @@ type AreaPhoto = {
   photo_url: string;
   created_at?: string;
 };
+
 
 export default function InspectionDetail() {
   const params = useParams();
