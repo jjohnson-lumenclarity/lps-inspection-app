@@ -49,6 +49,8 @@ export default function InspectionsPage() {
   const [uploadingZoneId, setUploadingZoneId] = useState<string | null>(null);
   const [zonePhotoFeatureEnabled, setZonePhotoFeatureEnabled] = useState(true);
   const [savingZoneId, setSavingZoneId] = useState<string | null>(null);
+  const [localProjectPhotos, setLocalProjectPhotos] = useState<Record<string, string>>({});
+  const [localZonePhotos, setLocalZonePhotos] = useState<Record<string, AreaPhoto[]>>({});
 
   const projectPhoto = useMemo(() => selectedProject?.photo_url ?? null, [selectedProject]);
 
