@@ -189,6 +189,8 @@ export default function InspectionsPage() {
       if (!response.ok) {
         const body = await response.json().catch(() => ({}));
         console.error('Upload failed:', body);
+        const message = typeof body?.error === 'string' ? body.error : 'Upload failed. Please check storage configuration and try again.';
+        window.alert(message);
         return;
       }
 
