@@ -49,13 +49,8 @@ export default function InspectionsPage() {
   const [uploadingZoneId, setUploadingZoneId] = useState<string | null>(null);
   const [zonePhotoFeatureEnabled, setZonePhotoFeatureEnabled] = useState(true);
   const [savingZoneId, setSavingZoneId] = useState<string | null>(null);
-  const [localProjectPhotos, setLocalProjectPhotos] = useState<Record<string, string>>({});
-  const [localZonePhotos, setLocalZonePhotos] = useState<Record<string, AreaPhoto[]>>({});
 
-  const projectPhoto = useMemo(() => {
-    if (!selectedProject) return null;
-    return selectedProject.photo_url ?? localProjectPhotos[selectedProject.id] ?? null;
-  }, [localProjectPhotos, selectedProject]);
+  const projectPhoto = useMemo(() => selectedProject?.photo_url ?? null, [selectedProject]);
 
   const photoPanelStyle = useMemo<React.CSSProperties>(() => ({
     minHeight: '260px',
@@ -175,7 +170,7 @@ export default function InspectionsPage() {
     }
   };
 
-  const handleUploadPhoto = async (project: Project) => {
+    const handleUploadPhoto = async (project: Project) => {
     const file = selectedFiles[project.id];
     if (!file) return;
 
@@ -194,22 +189,14 @@ export default function InspectionsPage() {
       if (!response.ok) {
         const body = await response.json().catch(() => ({}));
         console.error('Upload failed:', body);
-        const localUrl = URL.createObjectURL(file);
-        setLocalProjectPhotos((prev) => ({ ...prev, [project.id]: localUrl }));
-        if (selectedProject?.id === project.id) {
-          setSelectedProject((prev) => (prev ? { ...prev, photo_url: prev.photo_url ?? localUrl } : prev));
-        }
-        setSelectedFiles((prev) => ({ ...prev, [project.id]: null }));
-        window.alert('Cloud upload failed, but a local demo preview was attached so you can continue your client demo.');
+        const message = typeof body?.error === 'string' ? body.error : 'Upload failed. Please check storage configuration and try again.';
+        window.alert(message);
         return;
       }
 
       const { photo_url } = (await response.json()) as { photo_url: string };
 
-      setProjects((prev) =>
-        prev.map((p) => (p.id === project.id ? { ...p, photo_url } : p)),
-      );
-      setLocalProjectPhotos((prev) => ({ ...prev, [project.id]: photo_url }));
+      setProjects((prev) => prev.map((p) => (p.id === project.id ? { ...p, photo_url } : p)));
 
       if (selectedProject?.id === project.id) {
         setSelectedProject((prev) => (prev ? { ...prev, photo_url } : prev));
@@ -275,18 +262,7 @@ export default function InspectionsPage() {
         .upload(path, file, { cacheControl: '3600', upsert: true });
 
       if (uploadError) {
-        const localUrl = URL.createObjectURL(file);
-        const localPhoto: AreaPhoto = {
-          id: `local-${Date.now()}`,
-          area_id: zoneId,
-          photo_url: localUrl,
-        };
-        setLocalZonePhotos((prev) => ({
-          ...prev,
-          [zoneId]: [localPhoto, ...(prev[zoneId] || [])],
-        }));
-        setSelectedZoneFiles((prev) => ({ ...prev, [zoneId]: null }));
-        window.alert('Zone upload saved locally for demo mode (cloud storage unavailable).');
+        window.alert(`Zone photo upload failed: ${uploadError.message}`);
         return;
       }
 
@@ -300,18 +276,8 @@ export default function InspectionsPage() {
         .single();
 
       if (error) {
-        const localPhoto: AreaPhoto = {
-          id: `local-${Date.now()}`,
-          area_id: zoneId,
-          photo_url,
-        };
-        setLocalZonePhotos((prev) => ({
-          ...prev,
-          [zoneId]: [localPhoto, ...(prev[zoneId] || [])],
-        }));
         setZonePhotoFeatureEnabled(false);
-        setSelectedZoneFiles((prev) => ({ ...prev, [zoneId]: null }));
-        window.alert('Zone photo metadata table is unavailable, so photos are being shown in local demo mode.');
+        window.alert('Zone photo table is not ready yet. Ask admin to create table area_photos.');
         return;
       }
 
@@ -326,7 +292,6 @@ export default function InspectionsPage() {
       setUploadingZoneId(null);
     }
   };
-
 
   const handleRenameZone = async (zone: ProjectArea) => {
     if (!zone.id) return;
@@ -376,7 +341,7 @@ export default function InspectionsPage() {
     }
 
     setPins((prev) => prev.filter((pin) => pin.id !== zone.id));
-    setAreaPhotosByZone((prev) => {
+       setAreaPhotosByZone((prev) => {
       const next = { ...prev };
       delete next[zone.id!];
       return next;
@@ -386,6 +351,7 @@ export default function InspectionsPage() {
       delete next[zone.id!];
       return next;
     });
+
     setSelectedProject((prev) => {
       if (!prev) return prev;
       const nextAreas = (prev.project_areas || []).filter((area) => area.id !== zone.id);
@@ -429,25 +395,44 @@ export default function InspectionsPage() {
           />
         </div>
 
+        {errorMessage && (
+          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{errorMessage}</div>
+        )}
+
+        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <label htmlFor="project-search" className="mb-2 block text-sm font-medium text-slate-700">
+            Search building / address
+          </label>
+          <input
+            id="project-search"
+            type="text"
+            value={projectSearch}
+            onChange={(e) => setProjectSearch(e.target.value)}
+            placeholder="Start typing building name or address..."
+            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+          />
+        </div>
+
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
           {filteredProjects.map((project) => (
             <div
               key={project.id}
-              className="cursor-pointer rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
-              style={{ border: '1px solid #dbe3ea', borderRadius: '14px', background: '#ffffff', padding: '20px', boxShadow: '0 1px 2px rgba(15,23,42,0.08)' }}
+              className="cursor-pointer rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-md"
               onClick={() => handleSelectProject(project)}
             >
-              <h2 className="text-lg font-semibold tracking-tight text-slate-900">{project.title}</h2>
-              <p className="mt-2 text-sm text-slate-600">{project.description}</p>
-              <p className="mt-1 text-sm text-slate-700">📍 {project.address}</p>
+              <h2 className="text-3xl font-bold tracking-tight text-slate-900">{project.title}</h2>
+              <p className="mt-2 text-2xl text-slate-600">{project.description}</p>
+              <p className="mt-2 text-xl text-slate-700">📍 {project.address}</p>
 
               <span
-                className={`mt-3 inline-flex rounded-full px-3 py-1 text-xs font-semibold ${statusBadgeClasses[project.status.toLowerCase()] ?? 'bg-blue-100 text-blue-700'}`}
+                className={`mt-4 inline-flex rounded-full px-4 py-1 text-lg font-semibold ${
+                  statusBadgeClasses[project.status.toLowerCase()] ?? 'bg-blue-100 text-blue-700'
+                }`}
               >
                 {project.status}
               </span>
 
-              {(project.photo_url || localProjectPhotos[project.id]) && (
+              {project.photo_url && (
                 <div
                   className="relative mt-4 h-44 w-full overflow-hidden rounded-xl"
                   style={{ position: 'relative', height: '11rem', width: '100%', overflow: 'hidden', borderRadius: '0.5rem' }}
@@ -564,7 +549,7 @@ export default function InspectionsPage() {
             {pins.length > 0 && (
               <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
                 {pins.map((pin, index) => {
-                  const zonePhotos = pin.id ? [...(localZonePhotos[pin.id] || []), ...(areaPhotosByZone[pin.id] || [])] : [];
+                  const zonePhotos = pin.id ? areaPhotosByZone[pin.id] || [] : [];
                   return (
                     <div key={pin.id || `${pin.name}-list-${index}`} className="rounded-lg border border-gray-200 p-3">
                       <p className="font-medium text-gray-900">{pin.name}</p>
@@ -602,7 +587,7 @@ export default function InspectionsPage() {
                             <button
                               type="button"
                               className="rounded bg-blue-600 px-3 py-1 text-xs font-semibold text-white disabled:bg-slate-300"
-                              disabled={!selectedZoneFiles[pin.id] || uploadingZoneId === pin.id || !zonePhotoFeatureEnabled || savingZoneId === pin.id}
+                              disabled={!selectedZoneFiles[pin.id] || uploadingZoneId === pin.id || !zonePhotoFeatureEnabled}
                               onClick={() => void handleZonePhotoUpload(pin.id!)}
                             >
                               {uploadingZoneId === pin.id ? 'Uploading…' : 'Add photo'}
@@ -627,6 +612,7 @@ export default function InspectionsPage() {
                           )}
                         </>
                       )}
+
                       {!pin.id && <p className="mt-2 text-xs text-slate-500">Save in progress…</p>}
                     </div>
                   );
