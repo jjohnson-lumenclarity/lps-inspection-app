@@ -375,9 +375,27 @@ export default function InspectionsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 p-4 sm:p-8">
-      <div className="mx-auto max-w-7xl space-y-8">
-        <h1 className="text-3xl font-bold text-gray-900">Inspections</h1>
+    <div className="min-h-screen bg-slate-50 p-4 sm:p-8" style={{ minHeight: '100vh', backgroundColor: '#f8fafc', padding: '16px' }}>
+      <div className="mx-auto max-w-7xl space-y-8" style={{ maxWidth: '1280px', margin: '0 auto' }}>
+        <h1 className="text-3xl font-bold text-gray-900" style={{ fontSize: '32px', fontWeight: 700, color: '#0f172a', marginBottom: '12px' }}>Inspections</h1>
+
+        {errorMessage && (
+          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{errorMessage}</div>
+        )}
+
+        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm" style={{ border: '1px solid #e2e8f0', borderRadius: '12px', background: '#fff', padding: '16px', marginBottom: '16px' }}>
+          <label htmlFor="project-search" className="mb-2 block text-sm font-medium text-slate-700">
+            Search building / address
+          </label>
+          <input
+            id="project-search"
+            type="text"
+            value={projectSearch}
+            onChange={(e) => setProjectSearch(e.target.value)}
+            placeholder="Start typing building name or address..."
+            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+          />
+        </div>
 
         {errorMessage && (
           <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{errorMessage}</div>
@@ -422,7 +440,7 @@ export default function InspectionsPage() {
                   style={{ position: 'relative', height: '11rem', width: '100%', overflow: 'hidden', borderRadius: '0.5rem' }}
                 >
                   <Image
-                    src={project.photo_url}
+                    src={project.photo_url || localProjectPhotos[project.id] || ''}
                     alt={`${project.title} photo`}
                     fill
                     unoptimized
