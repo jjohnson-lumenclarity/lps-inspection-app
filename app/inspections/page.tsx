@@ -170,7 +170,7 @@ export default function InspectionsPage() {
     }
   };
 
-  const handleUploadPhoto = async (project: Project) => {
+    const handleUploadPhoto = async (project: Project) => {
     const file = selectedFiles[project.id];
     if (!file) return;
 
@@ -196,9 +196,7 @@ export default function InspectionsPage() {
 
       const { photo_url } = (await response.json()) as { photo_url: string };
 
-      setProjects((prev) =>
-        prev.map((p) => (p.id === project.id ? { ...p, photo_url } : p)),
-      );
+      setProjects((prev) => prev.map((p) => (p.id === project.id ? { ...p, photo_url } : p)));
 
       if (selectedProject?.id === project.id) {
         setSelectedProject((prev) => (prev ? { ...prev, photo_url } : prev));
@@ -295,7 +293,6 @@ export default function InspectionsPage() {
     }
   };
 
-
   const handleRenameZone = async (zone: ProjectArea) => {
     if (!zone.id) return;
 
@@ -344,7 +341,7 @@ export default function InspectionsPage() {
     }
 
     setPins((prev) => prev.filter((pin) => pin.id !== zone.id));
-    setAreaPhotosByZone((prev) => {
+       setAreaPhotosByZone((prev) => {
       const next = { ...prev };
       delete next[zone.id!];
       return next;
@@ -354,6 +351,7 @@ export default function InspectionsPage() {
       delete next[zone.id!];
       return next;
     });
+
     setSelectedProject((prev) => {
       if (!prev) return prev;
       const nextAreas = (prev.project_areas || []).filter((area) => area.id !== zone.id);
@@ -401,15 +399,17 @@ export default function InspectionsPage() {
           {filteredProjects.map((project) => (
             <div
               key={project.id}
-              className="cursor-pointer rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+              className="cursor-pointer rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-md"
               onClick={() => handleSelectProject(project)}
             >
-              <h2 className="text-lg font-semibold tracking-tight text-slate-900">{project.title}</h2>
-              <p className="mt-2 text-sm text-slate-600">{project.description}</p>
-              <p className="mt-1 text-sm text-slate-700">📍 {project.address}</p>
+              <h2 className="text-3xl font-bold tracking-tight text-slate-900">{project.title}</h2>
+              <p className="mt-2 text-2xl text-slate-600">{project.description}</p>
+              <p className="mt-2 text-xl text-slate-700">📍 {project.address}</p>
 
               <span
-                className={`mt-3 inline-flex rounded-full px-3 py-1 text-xs font-semibold ${statusBadgeClasses[project.status.toLowerCase()] ?? 'bg-blue-100 text-blue-700'}`}
+                className={`mt-4 inline-flex rounded-full px-4 py-1 text-lg font-semibold ${
+                  statusBadgeClasses[project.status.toLowerCase()] ?? 'bg-blue-100 text-blue-700'
+                }`}
               >
                 {project.status}
               </span>
@@ -569,7 +569,7 @@ export default function InspectionsPage() {
                             <button
                               type="button"
                               className="rounded bg-blue-600 px-3 py-1 text-xs font-semibold text-white disabled:bg-slate-300"
-                              disabled={!selectedZoneFiles[pin.id] || uploadingZoneId === pin.id || !zonePhotoFeatureEnabled || savingZoneId === pin.id}
+                              disabled={!selectedZoneFiles[pin.id] || uploadingZoneId === pin.id || !zonePhotoFeatureEnabled}
                               onClick={() => void handleZonePhotoUpload(pin.id!)}
                             >
                               {uploadingZoneId === pin.id ? 'Uploading…' : 'Add photo'}
@@ -594,6 +594,7 @@ export default function InspectionsPage() {
                           )}
                         </>
                       )}
+
                       {!pin.id && <p className="mt-2 text-xs text-slate-500">Save in progress…</p>}
                     </div>
                   );
