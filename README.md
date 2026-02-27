@@ -74,6 +74,49 @@ npm run build
   - Use **Back to project list** or **Close** in the inspections UI.
   - Refresh the page to reset local UI state.
 
+## GitHub PR Recovery Checklist (when you feel stuck)
+
+If GitHub says a branch is "ahead of main" but you cannot find a specific commit hash/message, use this exact process:
+
+1. Open the branch in GitHub and click **Commits**.
+2. If the expected commit message is not there, compare by file content instead:
+   - Open `app/inspections/page.tsx` in that branch.
+   - Confirm the inspection photo panel only has **one** `style=` prop (`style={photoPanelStyle}`).
+3. Open the PR for that branch and verify the same file in **Files changed**.
+4. Merge only the PR that contains the single-style fix.
+5. In Vercel, deploy the merged commit SHA from `main` (or click **Redeploy** for that commit).
+6. Hard-refresh the browser (`Ctrl+Shift+R` / `Cmd+Shift+R`) before re-checking `/inspections`.
+
+If Vercel still shows this error:
+
+```
+JSX elements cannot have multiple attributes with the same name
+```
+
+then the deployment is still using an older commit. Redeploy the latest merged commit from `main`.
+
+### How to tell if a failed check is stale
+
+When a Vercel check fails, always read the `Commit:` value near the top of the log.
+
+- If the commit SHA in the log is **not** the latest commit on your PR branch, the failure is stale and does not represent your current code.
+- If it is the latest SHA, open `app/inspections/page.tsx` in that exact commit and verify the selected photo panel has one `style=` attribute (`style={photoPanelStyle}`).
+
+## MVP Note: Zone Photos Table
+
+To support photo attachments per roof zone (pin), create this Supabase table once:
+
+```sql
+create table if not exists public.area_photos (
+  id uuid primary key default gen_random_uuid(),
+  area_id uuid not null references public.project_areas(id) on delete cascade,
+  photo_url text not null,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists area_photos_area_id_idx on public.area_photos(area_id);
+```
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:
