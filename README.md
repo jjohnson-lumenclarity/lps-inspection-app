@@ -117,25 +117,6 @@ create table if not exists public.area_photos (
 create index if not exists area_photos_area_id_idx on public.area_photos(area_id);
 ```
 
-
-## MVP Note: Checklist Table
-
-To save fillable inspection checklists per project, create this table once:
-
-```sql
-create table if not exists public.inspection_checklists (
-  id uuid primary key default gen_random_uuid(),
-  project_id uuid not null references public.projects(id) on delete cascade,
-  checklist_data jsonb not null default '{}'::jsonb,
-  overall_notes text,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
-);
-
-create index if not exists inspection_checklists_project_id_idx
-  on public.inspection_checklists(project_id);
-```
-
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:
