@@ -20,6 +20,20 @@ interface Project {
 }
 
 
+const googleMapsApiKey = 'AIzaSyAodLZjU2qN3sxua9fIy54Xc12tTwiVTD4';
+
+const getSatellitePlaceEmbedUrl = (address: string, zoom = 20) => {
+  const query = encodeURIComponent(address.trim() || 'United States');
+  return `https://www.google.com/maps/embed/v1/place?key=${googleMapsApiKey}&q=${query}&maptype=satellite&zoom=${zoom}`;
+};
+
+const getProjectLocationsStaticMapUrl = (addresses: string[]) => {
+  const valid = addresses.map((a) => a.trim()).filter(Boolean);
+  const markerParams = valid.map((address) => `markers=color:0x374151|${encodeURIComponent(address)}`).join('&');
+  const center = encodeURIComponent(valid[0] || 'United States');
+  return `https://maps.googleapis.com/maps/api/staticmap?size=1400x700&maptype=satellite&zoom=12&center=${center}&${markerParams}&key=${googleMapsApiKey}`;
+};
+
 export default function Dashboard() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [newProject, setNewProject] = useState({
@@ -32,6 +46,10 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(false);
   const [uploadingId, setUploadingId] = useState<string | null>(null);
   const [selectedFiles, setSelectedFiles] = useState<Record<string, File | null>>({});
+
+  const canSubmitProject = newProject.title.trim().length > 0 && newProject.address.trim().length > 0;
+  const addressPreviewUrl = newProject.address.trim() ? getSatellitePlaceEmbedUrl(newProject.address, 20) : null;
+  const projectsMapUrl = getProjectLocationsStaticMapUrl(projects.map((project) => project.address));
   
   useEffect(() => {
     fetchProjects();
@@ -220,7 +238,7 @@ export default function Dashboard() {
         </h2>
         <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
           <input
-            placeholder="Project Title"
+            placeholder="Company Name (required)"
             value={newProject.title}
             onChange={(e) =>
               setNewProject({ ...newProject, title: e.target.value })
@@ -234,7 +252,7 @@ export default function Dashboard() {
             }}
           />
           <input
-            placeholder="Description"
+            placeholder="Description (optional)"
             value={newProject.description}
             onChange={(e) =>
               setNewProject({ ...newProject, description: e.target.value })
@@ -248,7 +266,7 @@ export default function Dashboard() {
             }}
           />
           <input
-            placeholder="123 Main St, Rockford MI"
+            placeholder="Street Address (required)"
             value={newProject.address}
             onChange={(e) =>
               setNewProject({ ...newProject, address: e.target.value })
@@ -280,16 +298,16 @@ export default function Dashboard() {
           <div style={{ display: 'flex', gap: '8px' }}>
             <button
               onClick={editingProject ? updateProject : addProject}
-              disabled={!newProject.title.trim()}
+              disabled={!canSubmitProject}
               style={{
                 padding: '12px 24px',
-                background: newProject.title.trim() ? '#3B82F6' : '#9CA3AF',
+                background: canSubmitProject ? '#3B82F6' : '#9CA3AF',
                 color: 'white',
                 border: 'none',
                 borderRadius: '8px',
                 fontSize: '16px',
                 fontWeight: '600',
-                cursor: newProject.title.trim() ? 'pointer' : 'not-allowed',
+                cursor: canSubmitProject ? 'pointer' : 'not-allowed',
               }}
             >
               {editingProject ? 'Update Project' : 'Add Project'}
@@ -313,24 +331,48 @@ export default function Dashboard() {
             )}
           </div>
         </div>
+
+        <p style={{ marginTop: '12px', color: '#6B7280', fontSize: '14px' }}>
+          Company name and address are required. Enter an address to preview the overhead satellite image.
+        </p>
       </div>
 
-      {/* Static Map section (keep your iframe or remove if you want) */}
+      {addressPreviewUrl && (
+        <div style={{ marginBottom: '24px' }}>
+          <h2 style={{ fontSize: '22px', color: '#1F2937', marginBottom: '12px' }}>
+            New Project Address Preview (Satellite)
+          </h2>
+          <iframe
+            width="100%"
+            height="420"
+            src={addressPreviewUrl}
+            style={{
+              border: 0,
+              borderRadius: '12px',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+            }}
+            allowFullScreen
+            loading="lazy"
+          />
+        </div>
+      )}
+
+      {/* Project Locations Map */}
       <div style={{ marginBottom: '32px' }}>
         <h2 style={{ fontSize: '24px', color: '#1F2937', marginBottom: '16px' }}>
-          Project Locations - Rockford, MI ({projects.length} projects)
+          Project Locations ({projects.length} projects)
         </h2>
-        <iframe
-          width="100%"
-          height="500"
-          src="https://www.google.com/maps/embed/v1/place?key=AIzaSyAodLZjU2qN3sxua9fIy54Xc12tTwiVTD4&q=Rockford+MI&zoom=11"
+        <img
+          src={projectsMapUrl}
+          alt="Satellite map with project location pins"
           style={{
+            width: '100%',
+            height: '500px',
+            objectFit: 'cover',
             border: 0,
             borderRadius: '12px',
             boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
           }}
-          allowFullScreen
-          loading="lazy"
         />
       </div>
 
