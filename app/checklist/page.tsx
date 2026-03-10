@@ -99,10 +99,10 @@ function writeLocalFallback(record: ChecklistRecord) {
 }
 
 export default function ChecklistPage() {
-  const [projectIdFromQuery, setProjectIdFromQuery] = useState<string>('');
+  const [projectIdFromQuery, setProjectIdFromQuery] = useState<string | null>(null);
 
   useEffect(() => {
-    const projectId = new URLSearchParams(window.location.search).get('projectId') || '';
+    const projectId = new URLSearchParams(window.location.search).get('projectId');
     setProjectIdFromQuery(projectId);
   }, []);
 
@@ -174,65 +174,41 @@ export default function ChecklistPage() {
   );
 
   useEffect(() => {
-    let cancelled = false;
+    if (projectIdFromQuery === null) return;
 
     const fetchProjects = async () => {
       setLoading(true);
-      setStatusMessage(null);
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from('projects')
+        .select('id, title, address, status')
+        .order('created_at', { ascending: false });
 
-      try {
-        const supabase = createClient();
-        const timeout = new Promise<never>((_, reject) => {
-          setTimeout(() => reject(new Error('Project fetch timeout')), 10000);
-        });
-
-        const query = supabase
-          .from('projects')
-          .select('id, title, address, status')
-          .order('created_at', { ascending: false });
-
-        const { data, error } = await Promise.race([query, timeout]);
-
-        if (cancelled) return;
-
-        if (error) {
-          setStatusMessage('Could not load projects from cloud. Please refresh and try again.');
-          setProjects([]);
-          setDefaultAnswers();
-          return;
-        }
-
-        const nextProjects = (data as Project[]) || [];
-        setProjects(nextProjects);
-
-        const preselect =
-          (projectIdFromQuery && nextProjects.some((project) => project.id === projectIdFromQuery)
-            ? projectIdFromQuery
-            : nextProjects[0]?.id) || '';
-
-        setSelectedProjectId(preselect);
-        if (preselect) {
-          await loadChecklist(preselect);
-        } else {
-          setDefaultAnswers();
-          setStatusMessage('No projects found yet. Create a project first, then return to Checklist.');
-        }
-      } catch (error) {
-        if (cancelled) return;
-        console.error('Checklist bootstrap failed:', error);
-        setProjects([]);
-        setDefaultAnswers();
-        setStatusMessage('Checklist failed to load cloud data. You can still use local demo mode after selecting a project.');
-      } finally {
-        if (!cancelled) setLoading(false);
+      if (error) {
+        setStatusMessage('Could not load projects.');
+        setLoading(false);
+        return;
       }
+
+      const nextProjects = (data as Project[]) || [];
+      setProjects(nextProjects);
+
+      const preselect =
+        (projectIdFromQuery && nextProjects.some((project) => project.id === projectIdFromQuery)
+          ? projectIdFromQuery
+          : nextProjects[0]?.id) || '';
+
+      setSelectedProjectId(preselect);
+      if (preselect) {
+        await loadChecklist(preselect);
+      } else {
+        setDefaultAnswers();
+      }
+
+      setLoading(false);
     };
 
     void fetchProjects();
-
-    return () => {
-      cancelled = true;
-    };
   }, [loadChecklist, projectIdFromQuery, setDefaultAnswers]);
 
   const handleSave = async () => {
@@ -294,15 +270,15 @@ export default function ChecklistPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 p-4 sm:p-8" style={{ minHeight: '100vh', backgroundColor: '#f8fafc', paddingTop: '88px' }}>
+    <div className="min-h-screen bg-slate-50 p-4 sm:p-8" style={{ minHeight: '100vh', backgroundColor: '#f8fafc' }}>
       <div className="mx-auto max-w-5xl space-y-6">
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm" style={{ border: '1px solid #dbe3ea', borderRadius: '16px', backgroundColor: '#fff', padding: '24px', boxShadow: '0 8px 24px rgba(15,23,42,0.08)' }}>
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <h1 className="text-3xl font-bold text-slate-900">Inspection Checklist</h1>
               <p className="mt-1 text-sm text-slate-600">Fill this checklist during field inspection and save it to the selected project.</p>
             </div>
-            <Link href="/inspections" className="rounded bg-slate-900 px-4 py-2 text-sm font-semibold text-white" style={{ backgroundColor: '#0f172a', color: '#fff', borderRadius: '8px', padding: '10px 14px', textDecoration: 'none' }}>
+            <Link href="/inspections" className="rounded bg-slate-900 px-4 py-2 text-sm font-semibold text-white">
               Back to Inspections
             </Link>
           </div>
@@ -314,12 +290,10 @@ export default function ChecklistPage() {
               </label>
               <select
                 id="project-picker"
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" style={{ width: '100%', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '10px 12px', fontSize: '14px' }}
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
                 value={selectedProjectId}
                 onChange={(event) => void handleProjectChange(event.target.value)}
-                disabled={projects.length === 0}
               >
-                {projects.length === 0 && <option value="">No projects available</option>}
                 {projects.map((project) => (
                   <option key={project.id} value={project.id}>
                     {project.title} — {project.address}
@@ -339,11 +313,11 @@ export default function ChecklistPage() {
         </div>
 
         {sections.map((section) => (
-          <section key={section.id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm" style={{ border: '1px solid #dbe3ea', borderRadius: '14px', backgroundColor: '#fff', padding: '20px', boxShadow: '0 8px 24px rgba(15,23,42,0.06)' }}>
+          <section key={section.id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <h2 className="text-lg font-bold text-slate-900">{section.title}</h2>
             <div className="mt-4 space-y-4">
               {section.items.map((item) => (
-                <div key={item.key} className="rounded-lg border border-slate-200 p-3" style={{ border: '1px solid #e2e8f0', borderRadius: '10px', padding: '12px' }}>
+                <div key={item.key} className="rounded-lg border border-slate-200 p-3">
                   <p className="text-sm font-semibold text-slate-800">{item.label}</p>
                   {item.help && <p className="mt-1 text-xs text-slate-500">{item.help}</p>}
 
@@ -381,13 +355,13 @@ export default function ChecklistPage() {
           </section>
         ))}
 
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm" style={{ border: '1px solid #dbe3ea', borderRadius: '14px', backgroundColor: '#fff', padding: '20px', boxShadow: '0 8px 24px rgba(15,23,42,0.06)' }}>
+        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <label htmlFor="overall-notes" className="mb-2 block text-sm font-semibold text-slate-800">
             Inspector Notes / Deviations / Recommended Work
           </label>
           <textarea
             id="overall-notes"
-            className="h-40 w-full rounded-lg border border-slate-300 p-3 text-sm" style={{ width: '100%', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '12px', minHeight: '160px' }}
+            className="h-40 w-full rounded-lg border border-slate-300 p-3 text-sm"
             placeholder="Enter notable deficiencies, recommended corrections, and quoting notes..."
             value={overallNotes}
             onChange={(event) => setOverallNotes(event.target.value)}
@@ -398,12 +372,12 @@ export default function ChecklistPage() {
               type="button"
               onClick={() => void handleSave()}
               disabled={!selectedProjectId || saving}
-              className="rounded bg-blue-600 px-4 py-2 text-sm font-semibold text-white disabled:bg-slate-300" style={{ backgroundColor: '#2563eb', color: '#fff', borderRadius: '8px', padding: '10px 14px' }}
+              className="rounded bg-blue-600 px-4 py-2 text-sm font-semibold text-white disabled:bg-slate-300"
             >
               {saving ? 'Saving…' : 'Save Checklist'}
             </button>
             {selectedProjectId && (
-              <Link href={`/inspections/${selectedProjectId}`} className="rounded bg-slate-800 px-4 py-2 text-sm font-semibold text-white" style={{ backgroundColor: '#1e293b', color: '#fff', borderRadius: '8px', padding: '10px 14px', textDecoration: 'none' }}>
+              <Link href={`/inspections/${selectedProjectId}`} className="rounded bg-slate-800 px-4 py-2 text-sm font-semibold text-white">
                 Open Quote Summary
               </Link>
             )}

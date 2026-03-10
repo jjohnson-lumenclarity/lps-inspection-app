@@ -109,7 +109,7 @@ export default function InspectionDetail() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 p-8 print:bg-white print:p-2" style={{ paddingTop: "88px" }}>
+    <div className="min-h-screen bg-slate-50 p-8 print:bg-white print:p-2">
       <div className="mx-auto max-w-5xl">
         <div className="mb-8 flex items-center justify-between print:hidden">
           <Link href="/inspections" className="inline-flex items-center text-blue-600 hover:text-blue-800">
@@ -139,6 +139,8 @@ export default function InspectionDetail() {
           {zones.map((zone) => (
             <div key={zone.id} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm print:break-inside-avoid">
               <h3 className="text-lg font-semibold text-slate-900">{zone.name}</h3>
+              <p className="text-sm text-slate-600">X: {zone.x_percent}% • Y: {zone.y_percent}%</p>
+
               {(zonePhotos[zone.id] || []).length > 0 ? (
                 <div className="mt-3 grid grid-cols-3 gap-2">
                   {(zonePhotos[zone.id] || []).map((photo) => (
