@@ -99,10 +99,10 @@ function writeLocalFallback(record: ChecklistRecord) {
 }
 
 export default function ChecklistPage() {
-  const [projectIdFromQuery, setProjectIdFromQuery] = useState<string>('');
+  const [projectIdFromQuery, setProjectIdFromQuery] = useState<string | null>(null);
 
   useEffect(() => {
-    const projectId = new URLSearchParams(window.location.search).get('projectId') || '';
+    const projectId = new URLSearchParams(window.location.search).get('projectId');
     setProjectIdFromQuery(projectId);
   }, []);
 
@@ -174,65 +174,41 @@ export default function ChecklistPage() {
   );
 
   useEffect(() => {
-    let cancelled = false;
+    if (projectIdFromQuery === null) return;
 
     const fetchProjects = async () => {
       setLoading(true);
-      setStatusMessage(null);
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from('projects')
+        .select('id, title, address, status')
+        .order('created_at', { ascending: false });
 
-      try {
-        const supabase = createClient();
-        const timeout = new Promise<never>((_, reject) => {
-          setTimeout(() => reject(new Error('Project fetch timeout')), 10000);
-        });
-
-        const query = supabase
-          .from('projects')
-          .select('id, title, address, status')
-          .order('created_at', { ascending: false });
-
-        const { data, error } = await Promise.race([query, timeout]);
-
-        if (cancelled) return;
-
-        if (error) {
-          setStatusMessage('Could not load projects from cloud. Please refresh and try again.');
-          setProjects([]);
-          setDefaultAnswers();
-          return;
-        }
-
-        const nextProjects = (data as Project[]) || [];
-        setProjects(nextProjects);
-
-        const preselect =
-          (projectIdFromQuery && nextProjects.some((project) => project.id === projectIdFromQuery)
-            ? projectIdFromQuery
-            : nextProjects[0]?.id) || '';
-
-        setSelectedProjectId(preselect);
-        if (preselect) {
-          await loadChecklist(preselect);
-        } else {
-          setDefaultAnswers();
-          setStatusMessage('No projects found yet. Create a project first, then return to Checklist.');
-        }
-      } catch (error) {
-        if (cancelled) return;
-        console.error('Checklist bootstrap failed:', error);
-        setProjects([]);
-        setDefaultAnswers();
-        setStatusMessage('Checklist failed to load cloud data. You can still use local demo mode after selecting a project.');
-      } finally {
-        if (!cancelled) setLoading(false);
+      if (error) {
+        setStatusMessage('Could not load projects.');
+        setLoading(false);
+        return;
       }
+
+      const nextProjects = (data as Project[]) || [];
+      setProjects(nextProjects);
+
+      const preselect =
+        (projectIdFromQuery && nextProjects.some((project) => project.id === projectIdFromQuery)
+          ? projectIdFromQuery
+          : nextProjects[0]?.id) || '';
+
+      setSelectedProjectId(preselect);
+      if (preselect) {
+        await loadChecklist(preselect);
+      } else {
+        setDefaultAnswers();
+      }
+
+      setLoading(false);
     };
 
     void fetchProjects();
-
-    return () => {
-      cancelled = true;
-    };
   }, [loadChecklist, projectIdFromQuery, setDefaultAnswers]);
 
   const handleSave = async () => {
@@ -317,9 +293,7 @@ export default function ChecklistPage() {
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
                 value={selectedProjectId}
                 onChange={(event) => void handleProjectChange(event.target.value)}
-                disabled={projects.length === 0}
               >
-                {projects.length === 0 && <option value="">No projects available</option>}
                 {projects.map((project) => (
                   <option key={project.id} value={project.id}>
                     {project.title} — {project.address}

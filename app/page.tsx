@@ -202,7 +202,7 @@ export default function Dashboard() {
       }}
     >
       <h1 style={{ fontSize: '32px', color: '#1F2937', marginBottom: '32px' }}>
-        Guardian Lighting Inspection Dashboard
+        Guardian Lightning Inspection System Dashboard
       </h1>
 
       {/* Add/Edit Project Form */}
