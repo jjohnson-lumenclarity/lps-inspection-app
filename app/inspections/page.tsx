@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
+import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent } from 'react';
 import { createClient } from '@/utils/supabase/client';
 
 type ProjectArea = {
@@ -21,20 +22,431 @@ type Project = {
   project_areas?: ProjectArea[];
 };
 
+type AreaPhoto = {
+  id: string;
+  area_id: string;
+  photo_url: string;
+  created_at?: string;
+};
+
+type ProjectMeta = {
+  contactName: string;
+  phone: string;
+  email: string;
+  inspectionDate: string;
+  dueDate: string;
+  weather: string;
+  temperature: string;
+};
+
+type ZoneDetail = {
+  zoneType: string;
+  quantity: string;
+  existingCondition: string;
+  recommendedWork: string;
+  accessDifficulty: string;
+  heightLiftNeeded: string;
+  materialNotes: string;
+  urgencyRisk: string;
+  typedOrVoiceNotes: string;
+  voiceNoteUrl: string;
+};
+
+type InspectionProfile = {
+  facilityType: string;
+  buildingsCovered: string;
+  roofTypes: string;
+  constructionType: string;
+};
+
+const defaultZoneDetail = (): ZoneDetail => ({
+  zoneType: '',
+  quantity: '',
+  existingCondition: '',
+  recommendedWork: '',
+  accessDifficulty: '',
+  heightLiftNeeded: '',
+  materialNotes: '',
+  urgencyRisk: '',
+  typedOrVoiceNotes: '',
+  voiceNoteUrl: '',
+});
+
+const defaultInspectionProfile = (): InspectionProfile => ({
+  facilityType: 'Commercial',
+  buildingsCovered: '',
+  roofTypes: '',
+  constructionType: '',
+});
+
+const featureCodes = ['RF', 'PK', 'LD', 'DR', 'GR', 'EQ', 'TP'];
+const quadrantColors = ['#ef4444', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#14b8a6', '#ec4899'];
+
+const statusBadgeClasses: Record<string, string> = {
+  draft: 'bg-slate-200 text-slate-700',
+  'ready for review': 'bg-amber-100 text-amber-700',
+  submitted: 'bg-blue-100 text-blue-700',
+  quoted: 'bg-emerald-100 text-emerald-700',
+};
+
+const statusBadgeStyles: Record<string, React.CSSProperties> = {
+  draft: { backgroundColor: '#64748b', color: '#ffffff' },
+  'ready for review': { backgroundColor: '#d97706', color: '#ffffff' },
+  submitted: { backgroundColor: '#2563eb', color: '#ffffff' },
+  quoted: { backgroundColor: '#059669', color: '#ffffff' },
+};
+
 export default function InspectionsPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [pins, setPins] = useState<ProjectArea[]>([]);
   const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [selectedFiles, setSelectedFiles] = useState<Record<string, File | null>>({});
   const [uploadingId, setUploadingId] = useState<string | null>(null);
+  const [projectSearch, setProjectSearch] = useState('');
+  const [areaPhotosByZone, setAreaPhotosByZone] = useState<Record<string, AreaPhoto[]>>({});
+  const [selectedZoneFiles, setSelectedZoneFiles] = useState<Record<string, File | null>>({});
+  const [uploadingZoneId, setUploadingZoneId] = useState<string | null>(null);
+  const [zonePhotoFeatureEnabled, setZonePhotoFeatureEnabled] = useState(true);
+  const [savingZoneId, setSavingZoneId] = useState<string | null>(null);
+  const [localProjectPhotos, setLocalProjectPhotos] = useState<Record<string, string>>({});
+  const [localZonePhotos, setLocalZonePhotos] = useState<Record<string, AreaPhoto[]>>({});
+  const [projectMeta, setProjectMeta] = useState<Record<string, ProjectMeta>>({});
+  const [zoneNotesById, setZoneNotesById] = useState<Record<string, string>>({});
+  const [savingZoneNoteId, setSavingZoneNoteId] = useState<string | null>(null);
+  const [zoneDetailsById, setZoneDetailsById] = useState<Record<string, ZoneDetail>>({});
+  const [savingZoneDetailId, setSavingZoneDetailId] = useState<string | null>(null);
+  const [recordingZoneId, setRecordingZoneId] = useState<string | null>(null);
+  const [markupEnabled, setMarkupEnabled] = useState(false);
+  const [mapMarkupLines, setMapMarkupLines] = useState<Array<{ x: number; y: number }[]>>([]);
+  const [annotatingPhotoUrl, setAnnotatingPhotoUrl] = useState<string | null>(null);
+  const [photoMarkupLines, setPhotoMarkupLines] = useState<Array<{ x: number; y: number }[]>>([]);
+  const [inspectionProfileByProject, setInspectionProfileByProject] = useState<Record<string, InspectionProfile>>({});
+  const mapMarkupCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const photoMarkupCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const mapMarkupDrawingRef = useRef(false);
+  const mapMarkupPathRef = useRef<Array<{ x: number; y: number }>>([]);
+  const photoMarkupDrawingRef = useRef(false);
+  const photoMarkupPathRef = useRef<Array<{ x: number; y: number }>>([]);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const recorderChunksRef = useRef<Blob[]>([]);
 
-  const projectPhoto = useMemo(() => selectedProject?.photo_url || FALLBACK_IMAGE, [selectedProject]);
+  const projectPhoto = useMemo(() => {
+    if (!selectedProject) return null;
+    return selectedProject.photo_url ?? localProjectPhotos[selectedProject.id] ?? null;
+  }, [localProjectPhotos, selectedProject]);
+
+  const photoPanelStyle = useMemo<React.CSSProperties>(() => ({
+    minHeight: '360px',
+    height: 'clamp(360px, 58vh, 760px)',
+    ...(projectPhoto
+      ? {
+          backgroundImage: `url(${projectPhoto})`,
+          backgroundSize: 'contain',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat',
+        }
+      : { backgroundColor: '#f1f5f9' }),
+  }), [projectPhoto]);
 
   const clearSelection = () => {
     setSelectedProject(null);
     setPins([]);
+    setAreaPhotosByZone({});
+    setZoneNotesById({});
+    setZoneDetailsById({});
+    setMarkupEnabled(false);
+    setMapMarkupLines([]);
   };
+
+  const loadInspectionProfile = useCallback((projectId: string) => {
+    try {
+      const raw = window.localStorage.getItem(`inspection-profile:${projectId}`);
+      const parsed = raw ? ({ ...defaultInspectionProfile(), ...JSON.parse(raw) } as InspectionProfile) : defaultInspectionProfile();
+      setInspectionProfileByProject((prev) => ({ ...prev, [projectId]: parsed }));
+    } catch {
+      setInspectionProfileByProject((prev) => ({ ...prev, [projectId]: defaultInspectionProfile() }));
+    }
+  }, []);
+
+  const saveInspectionProfile = (projectId: string) => {
+    const profile = inspectionProfileByProject[projectId] || defaultInspectionProfile();
+    try {
+      window.localStorage.setItem(`inspection-profile:${projectId}`, JSON.stringify(profile));
+      window.alert('Inspection profile saved.');
+    } catch {
+      window.alert('Could not save inspection profile on this device.');
+    }
+  };
+
+
+  const loadZoneNotes = useCallback((projectId: string, areas: ProjectArea[]) => {
+    const notes: Record<string, string> = {};
+    for (const area of areas) {
+      if (!area.id) continue;
+      const key = `zone-note:${projectId}:${area.id}`;
+      notes[area.id] = window.localStorage.getItem(key) || '';
+    }
+    setZoneNotesById(notes);
+  }, []);
+
+  const loadZoneDetails = useCallback((projectId: string, areas: ProjectArea[]) => {
+    const details: Record<string, ZoneDetail> = {};
+    for (const area of areas) {
+      if (!area.id) continue;
+      const key = `zone-detail:${projectId}:${area.id}`;
+      try {
+        const raw = window.localStorage.getItem(key);
+        details[area.id] = raw ? ({ ...defaultZoneDetail(), ...JSON.parse(raw) } as ZoneDetail) : defaultZoneDetail();
+      } catch {
+        details[area.id] = defaultZoneDetail();
+      }
+    }
+    setZoneDetailsById(details);
+  }, []);
+
+  const saveZoneNote = async (projectId: string, zoneId: string) => {
+    const note = zoneNotesById[zoneId] || '';
+    setSavingZoneNoteId(zoneId);
+    try {
+      window.localStorage.setItem(`zone-note:${projectId}:${zoneId}`, note);
+    } finally {
+      setSavingZoneNoteId(null);
+    }
+  };
+
+  const saveZoneDetails = async (projectId: string, zoneId: string) => {
+    const detail = zoneDetailsById[zoneId] || defaultZoneDetail();
+    setSavingZoneDetailId(zoneId);
+    try {
+      window.localStorage.setItem(`zone-detail:${projectId}:${zoneId}`, JSON.stringify(detail));
+    } finally {
+      setSavingZoneDetailId(null);
+    }
+  };
+
+  const updateZoneDetailField = (zoneId: string, key: keyof ZoneDetail, value: string) => {
+    setZoneDetailsById((prev) => ({
+      ...prev,
+      [zoneId]: {
+        ...(prev[zoneId] || defaultZoneDetail()),
+        [key]: value,
+      },
+    }));
+  };
+
+  const startVoiceRecording = async (zoneId: string) => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      recorderRef.current = recorder;
+      recorderChunksRef.current = [];
+      setRecordingZoneId(zoneId);
+
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) recorderChunksRef.current.push(event.data);
+      };
+
+      recorder.onstop = () => {
+        const blob = new Blob(recorderChunksRef.current, { type: 'audio/webm' });
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const result = typeof reader.result === 'string' ? reader.result : '';
+          updateZoneDetailField(zoneId, 'voiceNoteUrl', result);
+        };
+        reader.readAsDataURL(blob);
+        stream.getTracks().forEach((track) => track.stop());
+        setRecordingZoneId(null);
+      };
+
+      recorder.start();
+    } catch (error) {
+      console.error('Voice recording failed:', error);
+      window.alert('Could not start microphone recording on this device/browser.');
+    }
+  };
+
+  const stopVoiceRecording = () => {
+    if (!recorderRef.current) return;
+    recorderRef.current.stop();
+  };
+
+  const redrawMapMarkup = useCallback(() => {
+    const canvas = mapMarkupCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = '#ef4444';
+    ctx.lineWidth = 3;
+    for (const path of mapMarkupLines) {
+      if (path.length < 2) continue;
+      ctx.beginPath();
+      ctx.moveTo(path[0].x, path[0].y);
+      for (let i = 1; i < path.length; i += 1) {
+        ctx.lineTo(path[i].x, path[i].y);
+      }
+      ctx.stroke();
+    }
+  }, [mapMarkupLines]);
+
+  useEffect(() => {
+    redrawMapMarkup();
+  }, [redrawMapMarkup]);
+
+  useEffect(() => {
+    if (!markupEnabled) return;
+    const canvas = mapMarkupCanvasRef.current;
+    if (!canvas) return;
+    const parent = canvas.parentElement;
+    if (!parent) return;
+    canvas.width = parent.clientWidth;
+    canvas.height = parent.clientHeight;
+    redrawMapMarkup();
+  }, [markupEnabled, projectPhoto, redrawMapMarkup]);
+
+  const pointOnCanvas = (event: PointerEvent<HTMLCanvasElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    return { x: event.clientX - rect.left, y: event.clientY - rect.top };
+  };
+
+  const beginMapDraw = (event: PointerEvent<HTMLCanvasElement>) => {
+    mapMarkupDrawingRef.current = true;
+    mapMarkupPathRef.current = [pointOnCanvas(event)];
+  };
+
+  const continueMapDraw = (event: PointerEvent<HTMLCanvasElement>) => {
+    if (!mapMarkupDrawingRef.current) return;
+    mapMarkupPathRef.current.push(pointOnCanvas(event));
+    const canvas = mapMarkupCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    const path = mapMarkupPathRef.current;
+    if (path.length < 2) return;
+    const p1 = path[path.length - 2];
+    const p2 = path[path.length - 1];
+    ctx.strokeStyle = '#ef4444';
+    ctx.lineWidth = 3;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(p1.x, p1.y);
+    ctx.lineTo(p2.x, p2.y);
+    ctx.stroke();
+  };
+
+  const endMapDraw = () => {
+    if (!mapMarkupDrawingRef.current) return;
+    mapMarkupDrawingRef.current = false;
+    if (mapMarkupPathRef.current.length > 1) {
+      setMapMarkupLines((prev) => [...prev, mapMarkupPathRef.current]);
+    }
+    mapMarkupPathRef.current = [];
+  };
+
+  const redrawPhotoMarkup = useCallback(() => {
+    const canvas = photoMarkupCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = '#22c55e';
+    ctx.lineWidth = 3;
+    for (const path of photoMarkupLines) {
+      if (path.length < 2) continue;
+      ctx.beginPath();
+      ctx.moveTo(path[0].x, path[0].y);
+      for (let i = 1; i < path.length; i += 1) {
+        ctx.lineTo(path[i].x, path[i].y);
+      }
+      ctx.stroke();
+    }
+  }, [photoMarkupLines]);
+
+  useEffect(() => {
+    redrawPhotoMarkup();
+  }, [redrawPhotoMarkup]);
+
+  useEffect(() => {
+    if (!annotatingPhotoUrl) return;
+    const canvas = photoMarkupCanvasRef.current;
+    if (!canvas) return;
+    const parent = canvas.parentElement;
+    if (!parent) return;
+    canvas.width = parent.clientWidth;
+    canvas.height = parent.clientHeight;
+    redrawPhotoMarkup();
+  }, [annotatingPhotoUrl, redrawPhotoMarkup]);
+
+  const beginPhotoDraw = (event: PointerEvent<HTMLCanvasElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    photoMarkupDrawingRef.current = true;
+    photoMarkupPathRef.current = [{ x: event.clientX - rect.left, y: event.clientY - rect.top }];
+  };
+
+  const continuePhotoDraw = (event: PointerEvent<HTMLCanvasElement>) => {
+    if (!photoMarkupDrawingRef.current) return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    photoMarkupPathRef.current.push({ x: event.clientX - rect.left, y: event.clientY - rect.top });
+    const canvas = photoMarkupCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    const path = photoMarkupPathRef.current;
+    if (path.length < 2) return;
+    const p1 = path[path.length - 2];
+    const p2 = path[path.length - 1];
+    ctx.strokeStyle = '#22c55e';
+    ctx.lineWidth = 3;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(p1.x, p1.y);
+    ctx.lineTo(p2.x, p2.y);
+    ctx.stroke();
+  };
+
+  const endPhotoDraw = () => {
+    if (!photoMarkupDrawingRef.current) return;
+    photoMarkupDrawingRef.current = false;
+    if (photoMarkupPathRef.current.length > 1) {
+      setPhotoMarkupLines((prev) => [...prev, photoMarkupPathRef.current]);
+    }
+    photoMarkupPathRef.current = [];
+  };
+
+  const fetchZonePhotos = useCallback(async (areas: ProjectArea[]) => {
+    const areaIds = areas.map((area) => area.id).filter(Boolean) as string[];
+    if (areaIds.length === 0) {
+      setAreaPhotosByZone({});
+      return;
+    }
+
+    const supabase = createClient();
+    const { data, error } = await supabase
+      .from('area_photos')
+      .select('id, area_id, photo_url, created_at')
+      .in('area_id', areaIds)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.warn('Area photo table unavailable or query failed:', error.message);
+      setZonePhotoFeatureEnabled(false);
+      setAreaPhotosByZone({});
+      return;
+    }
+
+    setZonePhotoFeatureEnabled(true);
+    const grouped = (data as AreaPhoto[]).reduce<Record<string, AreaPhoto[]>>((acc, photo) => {
+      acc[photo.area_id] = [...(acc[photo.area_id] || []), photo];
+      return acc;
+    }, {});
+    setAreaPhotosByZone(grouped);
+  }, []);
 
   const fetchProjects = useCallback(async () => {
     setLoading(true);
@@ -54,12 +466,33 @@ export default function InspectionsPage() {
 
       const nextProjects = (data as Project[]) || [];
       setProjects(nextProjects);
-
-      if (selectedProject) {
-        const freshSelected = nextProjects.find((project) => project.id === selectedProject.id) || null;
-        setSelectedProject(freshSelected);
-        setPins(freshSelected?.project_areas || []);
+      const meta: Record<string, ProjectMeta> = {};
+      for (const project of nextProjects) {
+        try {
+          const raw = window.localStorage.getItem(`project-meta:${project.id}`);
+          meta[project.id] = raw
+            ? ({ contactName: '', phone: '', email: '', inspectionDate: '', dueDate: '', weather: '', temperature: '', ...JSON.parse(raw) } as ProjectMeta)
+            : { contactName: '', phone: '', email: '', inspectionDate: '', dueDate: '', weather: '', temperature: '' };
+        } catch {
+          meta[project.id] = { contactName: '', phone: '', email: '', inspectionDate: '', dueDate: '', weather: '', temperature: '' };
+        }
       }
+      setProjectMeta(meta);
+
+      setSelectedProject((currentSelected) => {
+        if (!currentSelected) return currentSelected;
+
+        const freshSelected = nextProjects.find((project) => project.id === currentSelected.id) || null;
+        const nextAreas = freshSelected?.project_areas || [];
+        setPins(nextAreas);
+        void fetchZonePhotos(nextAreas);
+        if (freshSelected) {
+          loadZoneNotes(freshSelected.id, nextAreas);
+          loadZoneDetails(freshSelected.id, nextAreas);
+          loadInspectionProfile(freshSelected.id);
+        }
+        return freshSelected;
+      });
     } catch (error) {
       console.error('Unexpected error loading projects:', error);
       setErrorMessage('Could not load projects. Please refresh and try again.');
@@ -68,35 +501,30 @@ export default function InspectionsPage() {
     } finally {
       setLoading(false);
     }
-  }, [selectedProject]);
+  }, [fetchZonePhotos, loadInspectionProfile, loadZoneDetails, loadZoneNotes]);
 
   useEffect(() => {
     void fetchProjects();
-  }, []);
+  }, [fetchProjects]);
 
-  const projectPhoto = useMemo(() => {
-    return selectedProject?.photo_url || 'https://via.placeholder.com/1200x800/4F46E5/FFFFFF?text=Upload+Project+Photo';
-  }, [selectedProject]);
-
-  const fetchProjects = async () => {
-    setLoading(true);
-    const supabase = createClient();
-    const { data, error } = await supabase
-      .from('projects')
-      .select('*, project_areas(id, name, x_percent, y_percent)')
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      console.error('Error loading projects:', error);
+  useEffect(() => {
+    if (projects.length === 0 || selectedProject) return;
+    const projectIdFromQuery = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('projectId') || '' : '';
+    if (!projectIdFromQuery) return;
+    const matched = projects.find((project) => project.id === projectIdFromQuery);
+    if (matched) {
+      handleSelectProject(matched);
     }
-
-    setProjects((data as Project[]) || []);
-    setLoading(false);
-  };
+  }, [projects, selectedProject]);
 
   const handleSelectProject = (project: Project) => {
     setSelectedProject(project);
-    setPins(project.project_areas || []);
+    const nextAreas = project.project_areas || [];
+    setPins(nextAreas);
+    void fetchZonePhotos(nextAreas);
+    loadZoneNotes(project.id, nextAreas);
+    loadZoneDetails(project.id, nextAreas);
+    loadInspectionProfile(project.id);
   };
 
   const handleFileChange = (projectId: string, file: File | null) => {
@@ -116,8 +544,7 @@ export default function InspectionsPage() {
 
     setProjects((prev) => prev.filter((p) => p.id !== projectId));
     if (selectedProject?.id === projectId) {
-      setSelectedProject(null);
-      setPins([]);
+      clearSelection();
     }
   };
 
@@ -140,14 +567,32 @@ export default function InspectionsPage() {
       if (!response.ok) {
         const body = await response.json().catch(() => ({}));
         console.error('Upload failed:', body);
+        const localUrl = URL.createObjectURL(file);
+        setLocalProjectPhotos((prev) => ({ ...prev, [project.id]: localUrl }));
+        if (selectedProject?.id === project.id) {
+          setSelectedProject((prev) => (prev ? { ...prev, photo_url: prev.photo_url ?? localUrl } : prev));
+        }
+        setSelectedFiles((prev) => ({ ...prev, [project.id]: null }));
+        window.alert('Cloud upload failed, but a local demo preview was attached so you can continue your client demo.');
         return;
       }
 
       const { photo_url } = (await response.json()) as { photo_url: string };
 
+      const supabase = createClient();
+      const { error: projectUpdateError } = await supabase
+        .from('projects')
+        .update({ photo_url })
+        .eq('id', project.id);
+
+      if (projectUpdateError) {
+        console.warn('Uploaded photo but failed to persist project photo_url:', projectUpdateError.message);
+      }
+
       setProjects((prev) =>
         prev.map((p) => (p.id === project.id ? { ...p, photo_url } : p)),
       );
+      setLocalProjectPhotos((prev) => ({ ...prev, [project.id]: photo_url }));
 
       if (selectedProject?.id === project.id) {
         setSelectedProject((prev) => (prev ? { ...prev, photo_url } : prev));
@@ -169,7 +614,7 @@ export default function InspectionsPage() {
     const x = Math.round(((e.clientX - rect.left) / rect.width) * 100);
     const y = Math.round(((e.clientY - rect.top) / rect.height) * 100);
 
-    const name = window.prompt('Lighting zone name?');
+    const name = window.prompt('Quadrant name?');
     if (!name) return;
 
     const optimisticPin: ProjectArea = { name, x_percent: x, y_percent: y };
@@ -193,34 +638,217 @@ export default function InspectionsPage() {
     setPins((prev) => [...prev.slice(0, -1), savedPin]);
   };
 
+  const handleZoneFileChange = (zoneId: string, file: File | null) => {
+    setSelectedZoneFiles((prev) => ({ ...prev, [zoneId]: file }));
+    if (file) {
+      void handleZonePhotoUpload(zoneId, file);
+    }
+  };
+
+  const handleZonePhotoUpload = async (zoneId: string, explicitFile?: File) => {
+    const file = explicitFile || selectedZoneFiles[zoneId];
+    if (!file) return;
+
+    setUploadingZoneId(zoneId);
+    const supabase = createClient();
+
+    try {
+      const ext = file.name.split('.').pop() || 'jpg';
+      const path = `zone-photos/${zoneId}/${Date.now()}.${ext}`;
+
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('project-media')
+        .upload(path, file, { cacheControl: '3600', upsert: true });
+
+      if (uploadError) {
+        const localUrl = URL.createObjectURL(file);
+        const localPhoto: AreaPhoto = {
+          id: `local-${Date.now()}`,
+          area_id: zoneId,
+          photo_url: localUrl,
+        };
+        setLocalZonePhotos((prev) => ({
+          ...prev,
+          [zoneId]: [localPhoto, ...(prev[zoneId] || [])],
+        }));
+        setSelectedZoneFiles((prev) => ({ ...prev, [zoneId]: null }));
+        window.alert('Zone upload saved locally for demo mode (cloud storage unavailable).');
+        return;
+      }
+
+      const { data: publicUrlData } = supabase.storage.from('project-media').getPublicUrl(uploadData.path);
+      const photo_url = publicUrlData.publicUrl;
+
+      const { data, error } = await supabase
+        .from('area_photos')
+        .insert([{ area_id: zoneId, photo_url }])
+        .select('id, area_id, photo_url, created_at')
+        .single();
+
+      if (error) {
+        const localPhoto: AreaPhoto = {
+          id: `local-${Date.now()}`,
+          area_id: zoneId,
+          photo_url,
+        };
+        setLocalZonePhotos((prev) => ({
+          ...prev,
+          [zoneId]: [localPhoto, ...(prev[zoneId] || [])],
+        }));
+        setZonePhotoFeatureEnabled(false);
+        setSelectedZoneFiles((prev) => ({ ...prev, [zoneId]: null }));
+        window.alert('Zone photo metadata table is unavailable, so photos are being shown in local demo mode.');
+        return;
+      }
+
+      setZonePhotoFeatureEnabled(true);
+      const savedPhoto = data as AreaPhoto;
+      setAreaPhotosByZone((prev) => ({
+        ...prev,
+        [zoneId]: [savedPhoto, ...(prev[zoneId] || [])],
+      }));
+      setSelectedZoneFiles((prev) => ({ ...prev, [zoneId]: null }));
+    } finally {
+      setUploadingZoneId(null);
+    }
+  };
+
+
+  const handleRenameZone = async (zone: ProjectArea) => {
+    if (!zone.id) return;
+
+    const nextName = window.prompt('Edit quadrant name', zone.name)?.trim();
+    if (!nextName || nextName === zone.name) return;
+
+    setSavingZoneId(zone.id);
+    const supabase = createClient();
+    const { error } = await supabase.from('project_areas').update({ name: nextName }).eq('id', zone.id);
+
+    if (error) {
+      window.alert(`Unable to rename zone: ${error.message}`);
+      setSavingZoneId(null);
+      return;
+    }
+
+    setPins((prev) => prev.map((pin) => (pin.id === zone.id ? { ...pin, name: nextName } : pin)));
+    setSelectedProject((prev) => {
+      if (!prev) return prev;
+      const nextAreas = (prev.project_areas || []).map((area) => (area.id === zone.id ? { ...area, name: nextName } : area));
+      return { ...prev, project_areas: nextAreas };
+    });
+    setSavingZoneId(null);
+  };
+
+  const handleDeleteZone = async (zone: ProjectArea) => {
+    if (!zone.id) return;
+    if (!window.confirm(`Delete quadrant "${zone.name}"?`)) return;
+
+    setSavingZoneId(zone.id);
+    const supabase = createClient();
+
+    if (zonePhotoFeatureEnabled) {
+      const { error: photoDeleteError } = await supabase.from('area_photos').delete().eq('area_id', zone.id);
+      if (photoDeleteError) {
+        console.warn('Could not delete area photo records before zone delete:', photoDeleteError.message);
+      }
+    }
+
+    const { error } = await supabase.from('project_areas').delete().eq('id', zone.id);
+
+    if (error) {
+      window.alert(`Unable to delete zone: ${error.message}`);
+      setSavingZoneId(null);
+      return;
+    }
+
+    setPins((prev) => prev.filter((pin) => pin.id !== zone.id));
+    setAreaPhotosByZone((prev) => {
+      const next = { ...prev };
+      delete next[zone.id!];
+      return next;
+    });
+    setSelectedZoneFiles((prev) => {
+      const next = { ...prev };
+      delete next[zone.id!];
+      return next;
+    });
+    setSelectedProject((prev) => {
+      if (!prev) return prev;
+      const nextAreas = (prev.project_areas || []).filter((area) => area.id !== zone.id);
+      return { ...prev, project_areas: nextAreas };
+    });
+    setSavingZoneId(null);
+  };
+
+  const filteredProjects = useMemo(() => {
+    const term = projectSearch.trim().toLowerCase();
+    if (!term) return projects;
+    return projects.filter((project) =>
+      [project.title, project.address, project.description].join(' ').toLowerCase().includes(term),
+    );
+  }, [projects, projectSearch]);
+
   if (loading) {
     return <div className="p-8 text-center text-xl font-semibold text-gray-500">Loading inspections...</div>;
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 p-4 sm:p-8">
-      <div className="mx-auto max-w-7xl space-y-8">
-        <h1 className="text-3xl font-bold text-gray-900">Inspections</h1>
+    <div className="min-h-screen bg-slate-50 p-4 sm:p-8" style={{ minHeight: '100vh', backgroundColor: '#f8fafc', padding: '16px', paddingTop: '88px', fontFamily: 'Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif' }}>
+      <div className="mx-auto max-w-7xl space-y-8" style={{ maxWidth: '1280px', margin: '0 auto' }}>
+        <h1 className="text-3xl font-bold text-gray-900" style={{ fontSize: '32px', fontWeight: 700, color: '#0f172a', marginBottom: '12px' }}>Inspection Prep</h1>
 
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
-          {projects.map((project) => (
+        {errorMessage && (
+          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{errorMessage}</div>
+        )}
+
+        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm" style={{ border: '1px solid #e2e8f0', borderRadius: '12px', background: '#fff', padding: '16px', marginBottom: '16px' }}>
+          <label htmlFor="project-search" className="mb-2 block text-sm font-medium text-slate-700">
+            Search building / address
+          </label>
+          <input
+            id="project-search"
+            type="text"
+            value={projectSearch}
+            onChange={(e) => setProjectSearch(e.target.value)}
+            placeholder="Start typing building name or address..."
+            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" style={{ width: '100%', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '10px 12px', fontSize: '14px' }}
+          />
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px' }}>
+          {filteredProjects.map((project) => (
             <div
               key={project.id}
-              className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm cursor-pointer"
+              className="cursor-pointer rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+              style={{ border: '1px solid #dbe3ea', borderRadius: '14px', background: '#ffffff', padding: '16px', boxShadow: '0 8px 24px rgba(15,23,42,0.08)', display: 'flex', flexDirection: 'column', gap: '4px' }}
               onClick={() => handleSelectProject(project)}
             >
-              <h2 className="text-lg font-semibold text-gray-900">{project.title}</h2>
-              <p className="text-sm text-gray-600">{project.description}</p>
-              <p className="mt-1 text-sm text-gray-500">📍 {project.address}</p>
+              <h2 className="text-lg font-semibold tracking-tight text-slate-900" style={{ margin: 0 }}>{project.title}</h2>
+              <p className="text-sm text-slate-600" style={{ margin: '2px 0 0 0', lineHeight: 1.35 }}>{project.description}</p>
+              <p className="text-sm text-slate-700" style={{ margin: '4px 0 0 0', lineHeight: 1.35 }}>📍 {project.address}</p>
+              <p className="text-xs text-slate-600" style={{ margin: '4px 0 0 0' }}>Contact: {projectMeta[project.id]?.contactName || '—'}</p>
+              <p className="text-xs text-slate-600" style={{ margin: '2px 0 0 0' }}>Phone: {projectMeta[project.id]?.phone || '—'} • Email: {projectMeta[project.id]?.email || '—'}</p>
+              <p className="text-xs text-slate-600" style={{ margin: '2px 0 0 0' }}>Inspection: {projectMeta[project.id]?.inspectionDate || '—'} • Due: {projectMeta[project.id]?.dueDate || '—'}</p>
 
-              {project.photo_url && (
-                <div className="relative mt-3 h-44 w-full overflow-hidden rounded-lg">
+              <span
+                className={`mt-3 inline-flex rounded-full px-3 py-1 text-xs font-semibold ${statusBadgeClasses[project.status.toLowerCase()] ?? 'bg-blue-100 text-blue-700'}`}
+                style={{ width: 'fit-content', padding: '6px 12px', borderRadius: '999px', fontWeight: 700, ...(statusBadgeStyles[project.status.toLowerCase()] || { backgroundColor: '#2563eb', color: '#fff' }) }}
+              >
+                {project.status}
+              </span>
+
+              {(project.photo_url || localProjectPhotos[project.id]) && (
+                <div
+                  className="relative mt-4 h-44 w-full overflow-hidden rounded-xl"
+                  style={{ position: 'relative', height: '180px', width: '100%', overflow: 'hidden', borderRadius: '10px' }}
+                >
                   <Image
-                    src={project.photo_url}
+                    src={project.photo_url || localProjectPhotos[project.id] || ''}
                     alt={`${project.title} photo`}
                     fill
                     unoptimized
-                    className="object-cover"
+                    className="object-contain"
+                    style={{ objectFit: 'contain', background: '#f8fafc' }}
                   />
                 </div>
               )}
@@ -229,6 +857,15 @@ export default function InspectionsPage() {
                 <input
                   type="file"
                   accept="image/*"
+                  style={{
+                    fontSize: '12px',
+                    border: '1px solid #cbd5e1',
+                    borderRadius: '8px',
+                    padding: '6px',
+                    backgroundColor: '#f8fafc',
+                    color: '#334155',
+                  }}
+                  className="file:mr-3 file:rounded-md file:border-0 file:bg-slate-800 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-white hover:file:bg-slate-700"
                   onChange={(e) => handleFileChange(project.id, e.target.files?.[0] || null)}
                 />
                 <button
@@ -259,62 +896,347 @@ export default function InspectionsPage() {
             </div>
           ))}
 
-          {projects.length === 0 && (
-            <p className="col-span-full text-center text-gray-500">No projects found. Create one from the dashboard.</p>
+          {filteredProjects.length === 0 && (
+            <p className="col-span-full text-center text-gray-500">No matching projects found.</p>
           )}
         </div>
 
         {selectedProject && (
-          <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-            <div className="mb-4 flex items-center justify-between">
+          <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm" style={{ border: '1px solid #dbe3ea', borderRadius: '16px', backgroundColor: '#fff', padding: '24px', boxShadow: '0 8px 24px rgba(15,23,42,0.08)' }}>
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h2 className="text-2xl font-semibold text-gray-900">{selectedProject.title}</h2>
                 <p className="text-gray-600">{selectedProject.address}</p>
               </div>
+              <div className="flex flex-wrap gap-2" style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', alignItems: 'center' }}>
+                <Link
+                  href={`/quote-summary?projectId=${selectedProject.id}`}
+                  className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white"
+                  style={{ backgroundColor: '#2563eb', color: '#fff', borderRadius: '8px', padding: '10px 14px', textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}
+                >
+                  Quote Summary
+                </Link>
+                <Link
+                  href={`/dashboard?edit=${selectedProject.id}`}
+                  className="rounded bg-emerald-600 px-4 py-2 text-sm font-medium text-white"
+                  style={{ backgroundColor: '#059669', color: '#fff', borderRadius: '8px', padding: '10px 14px', textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}
+                >
+                  Edit Project Info
+                </Link>
+                <button
+                  type="button"
+                  className="rounded bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700"
+                  style={{ backgroundColor: '#e5e7eb', color: '#374151', borderRadius: '8px', padding: '10px 14px', border: '1px solid #d1d5db' }}
+                  onClick={clearSelection}
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+
+            <div style={{ marginBottom: '14px', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '12px', background: '#f8fafc' }}>
+              <p style={{ margin: '0 0 8px 0', fontSize: '13px', fontWeight: 700, color: '#0f172a' }}>Inspection Profile</p>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '8px' }}>
+                <label style={{ fontSize: '12px', color: '#334155', fontWeight: 600 }}>Facility type
+                  <select
+                    value={inspectionProfileByProject[selectedProject.id]?.facilityType || 'Commercial'}
+                    onChange={(event) =>
+                      setInspectionProfileByProject((prev) => ({
+                        ...prev,
+                        [selectedProject.id]: {
+                          ...(prev[selectedProject.id] || defaultInspectionProfile()),
+                          facilityType: event.target.value,
+                        },
+                      }))
+                    }
+                    style={{ width: '100%', marginTop: '4px', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '8px', fontSize: '13px' }}
+                  >
+                    <option>Industrial</option>
+                    <option>Commercial</option>
+                    <option>Institutional</option>
+                  </select>
+                </label>
+                <label style={{ fontSize: '12px', color: '#334155', fontWeight: 600 }}>Number of buildings covered
+                  <input
+                    value={inspectionProfileByProject[selectedProject.id]?.buildingsCovered || ''}
+                    onChange={(event) =>
+                      setInspectionProfileByProject((prev) => ({
+                        ...prev,
+                        [selectedProject.id]: {
+                          ...(prev[selectedProject.id] || defaultInspectionProfile()),
+                          buildingsCovered: event.target.value,
+                        },
+                      }))
+                    }
+                    style={{ width: '100%', marginTop: '4px', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '8px', fontSize: '13px' }}
+                  />
+                </label>
+                <label style={{ fontSize: '12px', color: '#334155', fontWeight: 600 }}>Roof type(s)
+                  <input
+                    value={inspectionProfileByProject[selectedProject.id]?.roofTypes || ''}
+                    onChange={(event) =>
+                      setInspectionProfileByProject((prev) => ({
+                        ...prev,
+                        [selectedProject.id]: {
+                          ...(prev[selectedProject.id] || defaultInspectionProfile()),
+                          roofTypes: event.target.value,
+                        },
+                      }))
+                    }
+                    style={{ width: '100%', marginTop: '4px', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '8px', fontSize: '13px' }}
+                  />
+                </label>
+                <label style={{ fontSize: '12px', color: '#334155', fontWeight: 600 }}>Construction type
+                  <input
+                    value={inspectionProfileByProject[selectedProject.id]?.constructionType || ''}
+                    onChange={(event) =>
+                      setInspectionProfileByProject((prev) => ({
+                        ...prev,
+                        [selectedProject.id]: {
+                          ...(prev[selectedProject.id] || defaultInspectionProfile()),
+                          constructionType: event.target.value,
+                        },
+                      }))
+                    }
+                    style={{ width: '100%', marginTop: '4px', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '8px', fontSize: '13px' }}
+                  />
+                </label>
+              </div>
               <button
                 type="button"
-                className="rounded bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700"
-                onClick={() => {
-                  setSelectedProject(null);
-                  setPins([]);
-                }}
+                onClick={() => saveInspectionProfile(selectedProject.id)}
+                style={{ marginTop: '8px', border: 'none', borderRadius: '8px', padding: '8px 12px', background: '#0f766e', color: '#fff', fontWeight: 700, fontSize: '12px' }}
               >
-                Close
+                Save inspection profile
               </button>
             </div>
 
             <div
-              className="relative h-[45vh] md:h-[55vh] w-full cursor-crosshair overflow-hidden rounded-xl border-2 border-dashed border-blue-300 bg-cover bg-center"
-              style={{ backgroundImage: `url(${projectPhoto})` }}
-              onClick={handleImageClick}
+              className={`relative w-full overflow-hidden rounded-xl border-2 border-dashed border-blue-300 bg-center ${
+                projectPhoto ? 'cursor-crosshair bg-cover' : 'bg-slate-100'
+              }`}
+              style={{ position: 'relative', overflow: 'hidden', borderRadius: '12px', border: '2px dashed #93c5fd', minHeight: '300px', ...photoPanelStyle }}
+              onClick={projectPhoto ? handleImageClick : undefined}
             >
-              {pins.map((pin, index) => (
-                <div
-                  key={pin.id || `${pin.name}-${index}`}
-                  className="absolute flex h-10 w-10 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 border-white bg-red-500 text-xs font-bold text-white"
-                  style={{ left: `${pin.x_percent}%`, top: `${pin.y_percent}%` }}
-                  title={`${pin.name} (${pin.x_percent}, ${pin.y_percent})`}
-                >
-                  {pin.name.slice(0, 3).toUpperCase()}
+              {projectPhoto ? (
+                pins.map((pin, index) => (
+                  <div
+                    key={pin.id || `${pin.name}-${index}`}
+                    className="absolute flex h-11 w-11 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 border-white bg-red-500 text-xs font-bold text-white shadow-lg ring-2 ring-red-200"
+                    style={{ position: 'absolute', left: `${pin.x_percent}%`, top: `${pin.y_percent}%`, transform: 'translate(-50%, -50%)', width: '44px', height: '44px', borderRadius: '999px', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: quadrantColors[index % quadrantColors.length], color: '#fff', border: '2px solid #fff', boxShadow: '0 6px 16px rgba(239,68,68,0.35)', fontSize: '11px', fontWeight: 700, zIndex: 5 }}
+                    title={`${pin.name} (${pin.x_percent}, ${pin.y_percent})`}
+                  >
+                    {pin.name.slice(0, 3).toUpperCase()}
+                  </div>
+                ))
+              ) : (
+                <div className="flex h-full items-center justify-center px-6 text-center text-sm text-gray-600">
+                  Upload a project photo from the card above to start placing zone pins.
                 </div>
-              ))}
+              )}
+
+              {projectPhoto && markupEnabled && (
+                <canvas
+                  ref={mapMarkupCanvasRef}
+                  style={{ position: 'absolute', inset: 0, zIndex: 4, touchAction: 'none' }}
+                  onPointerDown={beginMapDraw}
+                  onPointerMove={continueMapDraw}
+                  onPointerUp={endMapDraw}
+                  onPointerLeave={endMapDraw}
+                />
+              )}
             </div>
 
-            <p className="mt-3 text-sm text-gray-600">Click anywhere on the photo to add a lighting zone pin.</p>
+            {projectPhoto && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => setMarkupEnabled((prev) => !prev)}
+                  className="rounded bg-slate-700 px-3 py-1 text-xs font-semibold text-white"
+                  style={{ backgroundColor: markupEnabled ? '#334155' : '#0f172a', color: '#fff', borderRadius: '7px', padding: '6px 10px' }}
+                >
+                  {markupEnabled ? 'Stop map drawing' : 'Draw on map'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMapMarkupLines([])}
+                  className="rounded border border-slate-300 bg-white px-3 py-1 text-xs font-semibold text-slate-700"
+                  style={{ border: '1px solid #cbd5e1', borderRadius: '7px', padding: '6px 10px', background: '#fff', color: '#334155' }}
+                >
+                  Clear drawing
+                </button>
+              </div>
+            )}
+
+            <p className="mt-3 text-sm text-gray-600">
+              {projectPhoto ? 'Click anywhere on the photo to add a quadrant pin.' : 'Photo required to place pins.'}
+            </p>
+
+            {!zonePhotoFeatureEnabled && (
+              <p className="mt-3 rounded bg-amber-50 px-3 py-2 text-sm text-amber-700">
+                Zone photo uploads are disabled until the <code>area_photos</code> table is available.
+              </p>
+            )}
 
             {pins.length > 0 && (
               <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
-                {pins.map((pin, index) => (
-                  <div key={pin.id || `${pin.name}-list-${index}`} className="rounded-lg border border-gray-200 p-3">
-                    <p className="font-medium text-gray-900">{pin.name}</p>
-                    <p className="text-sm text-gray-600">
-                      X: {pin.x_percent}% • Y: {pin.y_percent}%
-                    </p>
-                  </div>
-                ))}
+                {pins.map((pin, index) => {
+                  const zonePhotos = pin.id ? [...(localZonePhotos[pin.id] || []), ...(areaPhotosByZone[pin.id] || [])] : [];
+                  return (
+                    <div key={pin.id || `${pin.name}-list-${index}`} className="rounded-lg border border-gray-200 p-3">
+                      <p className="font-medium text-gray-900">{pin.name}</p>
+                      {pin.id && (
+                        <>
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            <button
+                              type="button"
+                              className="rounded bg-slate-800 px-3 py-1 text-xs font-semibold text-white disabled:opacity-50"
+                              style={{ backgroundColor: '#334155', color: '#fff', borderRadius: '8px', padding: '6px 10px', border: 'none' }}
+                              disabled={savingZoneId === pin.id}
+                              onClick={() => void handleRenameZone(pin)}
+                            >
+                              {savingZoneId === pin.id ? 'Saving…' : 'Rename'}
+                            </button>
+                            <button
+                              type="button"
+                              className="rounded bg-red-600 px-3 py-1 text-xs font-semibold text-white disabled:opacity-50"
+                              style={{ backgroundColor: '#dc2626', color: '#fff', borderRadius: '8px', padding: '6px 10px', border: 'none' }}
+                              disabled={savingZoneId === pin.id}
+                              onClick={() => void handleDeleteZone(pin)}
+                            >
+                              Delete Quadrant
+                            </button>
+                          </div>
+
+                          <div className="mt-2 flex items-center gap-2" style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              style={{
+                                fontSize: '12px',
+                                border: '1px solid #cbd5e1',
+                                borderRadius: '8px',
+                                padding: '6px',
+                                backgroundColor: '#f8fafc',
+                                maxWidth: '220px',
+                                color: '#334155',
+                              }}
+                              className="file:mr-3 file:rounded-md file:border-0 file:bg-slate-800 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-white hover:file:bg-slate-700"
+                              onChange={(e) => handleZoneFileChange(pin.id!, e.target.files?.[0] || null)}
+                            />
+                          </div>
+
+                          {zonePhotos.length > 0 && (
+                            <div className="mt-2 grid grid-cols-3 gap-2">
+                              {zonePhotos.map((photo) => (
+                                <a key={photo.id} href={photo.photo_url} target="_blank" rel="noreferrer" style={{ position: 'relative', display: 'block' }}>
+                                  <Image
+                                    src={photo.photo_url}
+                                    alt={`Zone ${pin.name}`}
+                                    width={100}
+                                    height={100}
+                                    unoptimized
+                                    className="h-16 w-full rounded object-cover"
+                                  />
+                                  <span style={{ position: 'absolute', left: '4px', bottom: '4px', fontSize: '9px', background: 'rgba(255,255,255,0.72)', color: '#0f172a', padding: '2px 4px', borderRadius: '4px' }}>
+                                    {new Date(photo.created_at || Date.now()).toLocaleDateString()} • Logo
+                                  </span>
+                                </a>
+                              ))}
+                            </div>
+                          )}
+
+                          {zonePhotos.length > 0 && (
+                            <button
+                              type="button"
+                              className="mt-2 rounded border border-emerald-300 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800"
+                              style={{ marginTop: '8px', border: '1px solid #6ee7b7', borderRadius: '6px', padding: '6px 10px', background: '#ecfdf5', color: '#065f46' }}
+                              onClick={() => {
+                                setAnnotatingPhotoUrl(zonePhotos[0].photo_url);
+                                setPhotoMarkupLines([]);
+                              }}
+                            >
+                              Draw on latest zone photo
+                            </button>
+                          )}
+
+                          <div className="mt-3" style={{ marginTop: '12px' }}>
+                            <label className="mb-1 block text-xs font-semibold text-slate-700">Quadrant Notes</label>
+                            <textarea
+                              value={pin.id ? zoneNotesById[pin.id] || '' : ''}
+                              onChange={(event) => {
+                                if (!pin.id) return;
+                                const value = event.target.value;
+                                setZoneNotesById((prev) => ({ ...prev, [pin.id!]: value }));
+                                if (selectedProject) window.localStorage.setItem(`zone-note:${selectedProject.id}:${pin.id!}`, value);
+                              }}
+                              placeholder="Add inspector notes, deficiencies, and quote guidance for this quadrant..."
+                              className="w-full rounded border border-slate-300 p-2 text-xs"
+                              style={{ width: '100%', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '8px', minHeight: '74px' }}
+                            />
+
+                            {pin.id && (
+                              <div className="mt-2 grid grid-cols-1 gap-2" style={{ marginTop: '10px', border: '1px solid #dbeafe', background: '#f8fbff', borderRadius: '10px', padding: '10px' }}>
+                                <p className="text-xs font-semibold text-slate-700">Quadrant tools</p>
+                                <label style={{ fontSize: '12px', color: '#334155', fontWeight: 600 }}>Feature/type code
+                                  <select
+                                    value={zoneDetailsById[pin.id!]?.zoneType || ''}
+                                    onChange={(event) => {
+                                      updateZoneDetailField(pin.id!, 'zoneType', event.target.value);
+                                      if (selectedProject) window.localStorage.setItem(`zone-detail:${selectedProject.id}:${pin.id!}`, JSON.stringify({ ...(zoneDetailsById[pin.id!] || defaultZoneDetail()), zoneType: event.target.value }));
+                                    }}
+                                    style={{ width: '100%', marginTop: '4px', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '7px 8px', fontSize: '12px' }}
+                                  >
+                                    <option value="">Select code</option>
+                                    {featureCodes.map((code) => (<option key={code} value={code}>{code}</option>))}
+                                  </select>
+                                </label>
+                                <div className="flex flex-wrap gap-2">
+                                  {recordingZoneId === pin.id ? (
+                                    <button type="button" onClick={stopVoiceRecording} className="rounded bg-red-600 px-3 py-1 text-xs font-semibold text-white" style={{ backgroundColor: '#dc2626', color: '#fff', borderRadius: '6px', padding: '6px 10px' }}>Stop voice note</button>
+                                  ) : (
+                                    <button type="button" onClick={() => void startVoiceRecording(pin.id!)} className="rounded bg-teal-700 px-3 py-1 text-xs font-semibold text-white" style={{ backgroundColor: '#0f766e', color: '#fff', borderRadius: '6px', padding: '6px 10px' }}>Record voice note</button>
+                                  )}
+                                </div>
+                                {zoneDetailsById[pin.id!]?.voiceNoteUrl && (<audio controls style={{ width: '100%', marginTop: '4px' }} src={zoneDetailsById[pin.id!]?.voiceNoteUrl} />)}
+                              </div>
+                            )}
+                          </div>
+                        </>
+                      )}
+                      {!pin.id && <p className="mt-2 text-xs text-slate-500">Save in progress…</p>}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </section>
+        )}
+
+        {annotatingPhotoUrl && (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.72)', zIndex: 2500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
+            <div style={{ width: 'min(960px, 100%)', maxHeight: '90vh', overflow: 'auto', background: '#fff', borderRadius: '12px', padding: '14px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+                <h3 style={{ margin: 0, color: '#0f172a' }}>Quadrant photo markup (local)</h3>
+                <button type="button" onClick={() => setAnnotatingPhotoUrl(null)} style={{ border: '1px solid #cbd5e1', borderRadius: 8, padding: '6px 10px', background: '#fff' }}>Close</button>
+              </div>
+              <div style={{ position: 'relative', borderRadius: '8px', overflow: 'hidden', border: '1px solid #cbd5e1', background: '#0f172a' }}>
+                <img src={annotatingPhotoUrl} alt="Zone markup" style={{ width: '100%', maxHeight: '65vh', objectFit: 'contain', display: 'block' }} />
+                <canvas
+                  ref={photoMarkupCanvasRef}
+                  style={{ position: 'absolute', inset: 0, touchAction: 'none' }}
+                  onPointerDown={beginPhotoDraw}
+                  onPointerMove={continuePhotoDraw}
+                  onPointerUp={endPhotoDraw}
+                  onPointerLeave={endPhotoDraw}
+                />
+              </div>
+              <div style={{ marginTop: '10px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                <button type="button" onClick={() => setPhotoMarkupLines([])} style={{ border: '1px solid #cbd5e1', borderRadius: 8, padding: '7px 10px', background: '#fff', color: '#334155', fontWeight: 600 }}>Clear drawing</button>
+                <p style={{ margin: 0, color: '#64748b', fontSize: 13 }}>Tip: this is a fast on-device markup tool for demos; export/persist can be added next.</p>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </div>
