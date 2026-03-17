@@ -1,501 +1,157 @@
 'use client';
 
-import { useState, useEffect, ChangeEvent } from 'react';
-import { createClient } from '@supabase/supabase-js';
+import { useEffect, useMemo, useState } from 'react';
+import { createClient } from '@/utils/supabase/client';
+import { NewProjectModal } from '@/components/dashboard/NewProjectModal';
+import { ProjectCard } from '@/components/dashboard/ProjectCard';
+import type { Project, ProjectMeta } from '@/components/dashboard/types';
 
-const supabaseUrl = 'https://latrpcynyafmknmcvgha.supabase.co';
-const supabaseKey =
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxhdHJwY3lueWFmbWtubWN2Z2hhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA5MTE0NjEsImV4cCI6MjA4NjQ4NzQ2MX0.h5nIamRUliPjyBxja7mr6oSm6RCsYfuLcABlCAl-2Kg';
+const statuses = ['Draft', 'Inspection In Progress', 'Ready for Review', 'Completed'];
 
-const supabase = createClient(supabaseUrl, supabaseKey);
+const defaultMeta = (): ProjectMeta => ({ inspectors: '', inspectionDate: '' });
 
-interface Project {
-  id: string;
-  title: string;
-  description: string;
-  address: string;
-  status: string;
-  created_at?: string;
-  photo_url?: string | null;
-}
-
-
-export default function Dashboard() {
+export default function DashboardPage() {
   const [projects, setProjects] = useState<Project[]>([]);
-  const [newProject, setNewProject] = useState({
+  const [projectMeta, setProjectMeta] = useState<Record<string, ProjectMeta>>({});
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('All');
+  const [inspectorFilter, setInspectorFilter] = useState('All');
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [draft, setDraft] = useState({
     title: '',
-    description: '',
     address: '',
-    status: 'Active',
+    description: '',
+    inspectors: '',
+    inspectionDate: new Date().toISOString().slice(0, 10),
+    status: 'Draft',
   });
-  const [editingProject, setEditingProject] = useState<Project | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [uploadingId, setUploadingId] = useState<string | null>(null);
-  const [selectedFiles, setSelectedFiles] = useState<Record<string, File | null>>({});
-  
+
   useEffect(() => {
-    fetchProjects();
+    const fetchProjects = async () => {
+      setLoading(true);
+      const supabase = createClient();
+      const { data } = await supabase.from('projects').select('*').order('created_at', { ascending: false });
+      const nextProjects = (data as Project[]) || [];
+      setProjects(nextProjects);
+
+      const nextMeta: Record<string, ProjectMeta> = {};
+      for (const project of nextProjects) {
+        try {
+          const raw = window.localStorage.getItem(`project-meta:${project.id}`);
+          nextMeta[project.id] = raw ? { ...defaultMeta(), ...JSON.parse(raw) } : defaultMeta();
+        } catch {
+          nextMeta[project.id] = defaultMeta();
+        }
+      }
+      setProjectMeta(nextMeta);
+      setLoading(false);
+    };
+
+    void fetchProjects();
   }, []);
 
-  const fetchProjects = async () => {
-    setLoading(true);
+  const inspectorOptions = useMemo(
+    () => ['All', ...Array.from(new Set(Object.values(projectMeta).map((meta) => meta.inspectors).filter(Boolean)))],
+    [projectMeta],
+  );
+
+  const filteredProjects = useMemo(() => {
+    return projects.filter((project) => {
+      const meta = projectMeta[project.id] || defaultMeta();
+      const matchesSearch = !search || `${project.title} ${project.address}`.toLowerCase().includes(search.toLowerCase());
+      const matchesStatus = statusFilter === 'All' || project.status === statusFilter;
+      const matchesInspector = inspectorFilter === 'All' || meta.inspectors === inspectorFilter;
+      return matchesSearch && matchesStatus && matchesInspector;
+    });
+  }, [inspectorFilter, projectMeta, projects, search, statusFilter]);
+
+  const groupedProjects = useMemo(() => {
+    return statuses.map((status) => ({
+      status,
+      items: filteredProjects.filter((project) => project.status === status),
+    }));
+  }, [filteredProjects]);
+
+  const createProject = async () => {
+    if (!draft.title.trim() || !draft.address.trim()) return;
+    const supabase = createClient();
     const { data, error } = await supabase
       .from('projects')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      console.error('Error loading projects:', error);
-    } else {
-      setProjects(data || []);
-    }
-    setLoading(false);
-  };
-
-  const addProject = async () => {
-    const { data, error } = await supabase
-      .from('projects')
-      .insert([newProject])
+      .insert([{ title: draft.title, address: draft.address, description: draft.description, status: draft.status }])
       .select()
       .single();
 
-    if (error) {
-      console.error('Error adding project:', error);
-    } else {
-      setProjects([data, ...projects]);
-      setNewProject({
-        title: '',
-        description: '',
-        address: '',
-        status: 'Active',
-      });
-    }
-  };
+    if (error || !data) return;
 
-  const updateProject = async () => {
-    if (!editingProject) return;
+    const created = data as Project;
+    const meta = { inspectors: draft.inspectors, inspectionDate: draft.inspectionDate };
+    window.localStorage.setItem(`project-meta:${created.id}`, JSON.stringify(meta));
 
-    const { error } = await supabase
-      .from('projects')
-      .update(newProject)
-      .eq('id', editingProject.id);
-
-    if (error) {
-      console.error('Error updating project:', error);
-      return;
-    }
-
-    setProjects((prev) =>
-      prev.map((p) =>
-        p.id === editingProject.id ? { ...p, ...newProject } : p
-      )
-    );
-
-    setEditingProject(null);
-    setNewProject({
+    setProjects((prev) => [created, ...prev]);
+    setProjectMeta((prev) => ({ ...prev, [created.id]: meta }));
+    setDraft({
       title: '',
-      description: '',
       address: '',
-      status: 'Active',
-    });
-  };
-
-  const handleDelete = async (id: string) => {
-    const { error } = await supabase.from('projects').delete().eq('id', id);
-    if (error) {
-      console.error('Error deleting project:', error);
-      return;
-    }
-    setProjects((prev) => prev.filter((p) => p.id !== id));
-  };
-
-  const handleEdit = (project: Project) => {
-    setEditingProject(project);
-    setNewProject({
-      title: project.title,
-      description: project.description,
-      address: project.address,
-      status: project.status,
-    });
-  };
-
-  const cancelEdit = () => {
-    setEditingProject(null);
-    setNewProject({
-      title: '',
       description: '',
-      address: '',
-      status: 'Active',
+      inspectors: '',
+      inspectionDate: new Date().toISOString().slice(0, 10),
+      status: 'Draft',
     });
+    setShowCreateModal(false);
   };
-
-  const handleFileChange = (projectId: string, e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0] || null;
-    setSelectedFiles((prev) => ({ ...prev, [projectId]: file }));
-  };
-
-  const handleUploadPhoto = async (project: Project) => {
-    const file = selectedFiles[project.id];
-    if (!file) return;
-
-    try {
-      setUploadingId(project.id);
-
-      const ext = file.name.split('.').pop();
-      const path = `${project.id}/${Date.now()}.${ext}`;
-
-      const { error: uploadError, data: uploadData } = await supabase.storage
-        .from('project-media')
-        .upload(path, file, {
-          cacheControl: '3600',
-          upsert: true,
-        });
-
-      if (uploadError) {
-        console.error('Error uploading file:', uploadError);
-        return;
-      }
-
-      const { data: publicUrlData } = supabase.storage
-        .from('project-media')
-        .getPublicUrl(uploadData.path);
-
-      const publicUrl = publicUrlData?.publicUrl || null;
-
-      const { error: updateError } = await supabase
-        .from('projects')
-        .update({ photo_url: publicUrl })
-        .eq('id', project.id);
-
-      if (updateError) {
-        console.error('Error saving photo URL:', updateError);
-        return;
-      }
-
-      setProjects((prev) =>
-        prev.map((p) =>
-          p.id === project.id ? { ...p, photo_url: publicUrl } : p
-        )
-      );
-
-      setSelectedFiles((prev) => ({ ...prev, [project.id]: null }));
-    } finally {
-      setUploadingId(null);
-    }
-  };
-
-  if (loading) {
-    return (
-      <main style={{ padding: '40px', textAlign: 'center', fontFamily: 'system-ui' }}>
-        Loading projects...
-      </main>
-    );
-  }
 
   return (
-    <main
-      style={{
-        padding: '40px',
-        maxWidth: '1200px',
-        margin: '0 auto',
-        fontFamily: 'system-ui',
-      }}
-    >
-      <h1 style={{ fontSize: '32px', color: '#1F2937', marginBottom: '32px' }}>
-        Guardian Lighting Inspection Dashboard
-      </h1>
-
-      {/* Add/Edit Project Form */}
-      <div
-        style={{
-          background: 'white',
-          padding: '24px',
-          borderRadius: '12px',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
-          marginBottom: '32px',
-        }}
-      >
-        <h2 style={{ fontSize: '24px', color: '#1F2937', marginBottom: '16px' }}>
-          {editingProject ? 'Edit Project' : 'Add New Project'}
-        </h2>
-        <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
-          <input
-            placeholder="Project Title"
-            value={newProject.title}
-            onChange={(e) =>
-              setNewProject({ ...newProject, title: e.target.value })
-            }
-            style={{
-              padding: '12px 16px',
-              border: '1px solid #D1D5DB',
-              borderRadius: '8px',
-              fontSize: '16px',
-              minWidth: '300px',
-            }}
-          />
-          <input
-            placeholder="Description"
-            value={newProject.description}
-            onChange={(e) =>
-              setNewProject({ ...newProject, description: e.target.value })
-            }
-            style={{
-              padding: '12px 16px',
-              border: '1px solid #D1D5DB',
-              borderRadius: '8px',
-              fontSize: '16px',
-              minWidth: '300px',
-            }}
-          />
-          <input
-            placeholder="123 Main St, Rockford MI"
-            value={newProject.address}
-            onChange={(e) =>
-              setNewProject({ ...newProject, address: e.target.value })
-            }
-            style={{
-              padding: '12px 16px',
-              border: '1px solid #D1D5DB',
-              borderRadius: '8px',
-              fontSize: '16px',
-              minWidth: '300px',
-            }}
-          />
-          <select
-            value={newProject.status}
-            onChange={(e) =>
-              setNewProject({ ...newProject, status: e.target.value })
-            }
-            style={{
-              padding: '12px 16px',
-              border: '1px solid #D1D5DB',
-              borderRadius: '8px',
-              fontSize: '16px',
-            }}
-          >
-            <option>Active</option>
-            <option>In Progress</option>
-            <option>Completed</option>
-          </select>
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <button
-              onClick={editingProject ? updateProject : addProject}
-              disabled={!newProject.title.trim()}
-              style={{
-                padding: '12px 24px',
-                background: newProject.title.trim() ? '#3B82F6' : '#9CA3AF',
-                color: 'white',
-                border: 'none',
-                borderRadius: '8px',
-                fontSize: '16px',
-                fontWeight: '600',
-                cursor: newProject.title.trim() ? 'pointer' : 'not-allowed',
-              }}
-            >
-              {editingProject ? 'Update Project' : 'Add Project'}
-            </button>
-            {editingProject && (
-              <button
-                onClick={cancelEdit}
-                style={{
-                  padding: '12px 24px',
-                  background: '#6B7280',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '8px',
-                  fontSize: '16px',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                }}
-              >
-                Cancel
-              </button>
-            )}
+    <div className="space-y-5 p-6">
+      <header className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">Project Workflow Dashboard</h1>
+            <p className="text-sm text-slate-600">Track jobs by status and jump directly into the next action.</p>
           </div>
+          <button onClick={() => setShowCreateModal(true)} className="rounded-md bg-slate-900 px-4 py-2 text-sm font-semibold text-white">
+            + New Project
+          </button>
         </div>
-      </div>
 
-      {/* Static Map section (keep your iframe or remove if you want) */}
-      <div style={{ marginBottom: '32px' }}>
-        <h2 style={{ fontSize: '24px', color: '#1F2937', marginBottom: '16px' }}>
-          Project Locations - Rockford, MI ({projects.length} projects)
-        </h2>
-        <iframe
-          width="100%"
-          height="500"
-          src="https://www.google.com/maps/embed/v1/place?key=AIzaSyAodLZjU2qN3sxua9fIy54Xc12tTwiVTD4&q=Rockford+MI&zoom=11"
-          style={{
-            border: 0,
-            borderRadius: '12px',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-          }}
-          allowFullScreen
-          loading="lazy"
-        />
-      </div>
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+          <input className="rounded-md border p-2" placeholder="Search by project or address" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <select className="rounded-md border p-2" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+            <option>All</option>
+            {statuses.map((status) => (
+              <option key={status}>{status}</option>
+            ))}
+          </select>
+          <select className="rounded-md border p-2" value={inspectorFilter} onChange={(e) => setInspectorFilter(e.target.value)}>
+            {inspectorOptions.map((inspector) => (
+              <option key={inspector}>{inspector}</option>
+            ))}
+          </select>
+        </div>
+      </header>
 
-      {/* Projects with photo upload */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))',
-          gap: '24px',
-        }}
-      >
-        {projects.length === 0 ? (
-          <p
-            style={{
-              gridColumn: '1 / -1',
-              textAlign: 'center',
-              color: '#6B7280',
-              fontSize: '18px',
-            }}
-          >
-            No projects yet. Add your first project above!
-          </p>
-        ) : (
-          projects.map((project) => (
-            <div
-              key={project.id}
-              style={{
-                padding: '25px',
-                border: '1px solid #E5E7EB',
-                borderRadius: '12px',
-                background: 'white',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
-              }}
-            >
-              <h3
-                style={{
-                  margin: '0 0 8px 0',
-                  color: '#1F2937',
-                  fontSize: '20px',
-                }}
-              >
-                {project.title}
-              </h3>
-              <p style={{ margin: '0 0 8px 0', color: '#6B7280' }}>
-                {project.description}
-              </p>
-              <p
-                style={{
-                  margin: '0 0 12px 0',
-                  color: '#374151',
-                  fontSize: '14px',
-                }}
-              >
-                📍 {project.address}
-              </p>
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  marginBottom: '16px',
-                }}
-              >
-                <span
-                  style={{
-                    padding: '4px 12px',
-                    background:
-                      project.status === 'Active'
-                        ? '#10B981'
-                        : project.status === 'In Progress'
-                        ? '#F59E0B'
-                        : '#6B7280',
-                    color: 'white',
-                    borderRadius: '20px',
-                    fontSize: '14px',
-                    fontWeight: '500',
-                  }}
-                >
-                  {project.status}
-                </span>
-              </div>
-
-              {/* Photo section */}
-              {project.photo_url && (
-                <div style={{ marginBottom: '12px' }}>
-                  <img
-                    src={project.photo_url}
-                    alt="Project"
-                    style={{
-                      width: '100%',
-                      maxHeight: '200px',
-                      objectFit: 'cover',
-                      borderRadius: '8px',
-                    }}
-                  />
+      {loading ? (
+        <p className="text-sm text-slate-500">Loading projects…</p>
+      ) : (
+        <div className="space-y-5">
+          {groupedProjects.map((group) => (
+            <section key={group.status}>
+              <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">{group.status}</h2>
+              {group.items.length === 0 ? (
+                <p className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-500">No projects in this lane.</p>
+              ) : (
+                <div className="grid grid-cols-1 gap-3 lg:grid-cols-2 2xl:grid-cols-3">
+                  {group.items.map((project) => (
+                    <ProjectCard key={project.id} project={project} meta={projectMeta[project.id] || defaultMeta()} />
+                  ))}
                 </div>
               )}
+            </section>
+          ))}
+        </div>
+      )}
 
-              <div style={{ marginBottom: '12px' }}>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => handleFileChange(project.id, e)}
-                />
-                <button
-                  onClick={() => handleUploadPhoto(project)}
-                  disabled={!selectedFiles[project.id] || uploadingId === project.id}
-                  style={{
-                    marginTop: '8px',
-                    padding: '8px 16px',
-                    background:
-                      !selectedFiles[project.id] || uploadingId === project.id
-                        ? '#9CA3AF'
-                        : '#10B981',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '6px',
-                    fontSize: '14px',
-                    fontWeight: '500',
-                    cursor:
-                      !selectedFiles[project.id] || uploadingId === project.id
-                        ? 'not-allowed'
-                        : 'pointer',
-                  }}
-                >
-                  {uploadingId === project.id ? 'Uploading…' : 'Upload Photo'}
-                </button>
-              </div>
-
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <button
-                  onClick={() => handleEdit(project)}
-                  style={{
-                    padding: '8px 16px',
-                    background: '#3B82F6',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '6px',
-                    fontSize: '14px',
-                    fontWeight: '500',
-                    cursor: 'pointer',
-                  }}
-                >
-                  Edit
-                </button>
-                <button
-                  onClick={() => handleDelete(project.id)}
-                  style={{
-                    padding: '8px 16px',
-                    background: '#EF4444',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '6px',
-                    fontSize: '14px',
-                    fontWeight: '500',
-                    cursor: 'pointer',
-                  }}
-                >
-                  Delete
-                </button>
-              </div>
-            </div>
-          ))
-        )}
-      </div>
-    </main>
+      <NewProjectModal open={showCreateModal} draft={draft} setDraft={setDraft} onClose={() => setShowCreateModal(false)} onSave={createProject} />
+    </div>
   );
 }

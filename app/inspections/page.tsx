@@ -1,321 +1,209 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import Image from 'next/image';
 import { createClient } from '@/utils/supabase/client';
-
-type ProjectArea = {
-  id?: string;
-  name: string;
-  x_percent: number;
-  y_percent: number;
-};
+import { BuildingCanvas } from '@/components/inspection-prep/BuildingCanvas';
+import { QuadrantPanel } from '@/components/inspection-prep/QuadrantPanel';
+import type { AreaPhoto, ProjectArea, ZoneState } from '@/components/inspection-prep/types';
 
 type Project = {
   id: string;
   title: string;
-  description: string;
   address: string;
   status: string;
   photo_url?: string | null;
-  project_areas?: ProjectArea[];
 };
 
-export default function InspectionsPage() {
+const defaultZoneState: ZoneState = { notes: '', status: 'Not Started' };
+
+export default function InspectionPrepPage() {
   const [projects, setProjects] = useState<Project[]>([]);
-  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
-  const [pins, setPins] = useState<ProjectArea[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedFiles, setSelectedFiles] = useState<Record<string, File | null>>({});
-  const [uploadingId, setUploadingId] = useState<string | null>(null);
+  const [selectedProjectId, setSelectedProjectId] = useState<string>('');
+  const [quadrants, setQuadrants] = useState<ProjectArea[]>([]);
+  const [selectedQuadrantId, setSelectedQuadrantId] = useState<string | null>(null);
+  const [photosByQuadrant, setPhotosByQuadrant] = useState<Record<string, AreaPhoto[]>>({});
+  const [zoneStateByQuadrant, setZoneStateByQuadrant] = useState<Record<string, ZoneState>>({});
+  const [projectSearch, setProjectSearch] = useState('');
+  const [uploading, setUploading] = useState(false);
 
-  const projectPhoto = useMemo(() => selectedProject?.photo_url || FALLBACK_IMAGE, [selectedProject]);
-
-  const clearSelection = () => {
-    setSelectedProject(null);
-    setPins([]);
-  };
-
-  const fetchProjects = useCallback(async () => {
-    setLoading(true);
-    setErrorMessage(null);
-
-    try {
-      const supabase = createClient();
-      const { data, error } = await supabase
-        .from('projects')
-        .select('*, project_areas(id, name, x_percent, y_percent)')
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        console.error('Error loading projects:', error);
-        setErrorMessage('Could not load projects. Please refresh and try again.');
-      }
-
-      const nextProjects = (data as Project[]) || [];
-      setProjects(nextProjects);
-
-      if (selectedProject) {
-        const freshSelected = nextProjects.find((project) => project.id === selectedProject.id) || null;
-        setSelectedProject(freshSelected);
-        setPins(freshSelected?.project_areas || []);
-      }
-    } catch (error) {
-      console.error('Unexpected error loading projects:', error);
-      setErrorMessage('Could not load projects. Please refresh and try again.');
-      setProjects([]);
-      clearSelection();
-    } finally {
-      setLoading(false);
-    }
-  }, [selectedProject]);
+  const selectedProject = projects.find((project) => project.id === selectedProjectId) || null;
+  const selectedQuadrant = quadrants.find((quadrant) => quadrant.id === selectedQuadrantId) || null;
 
   useEffect(() => {
-    void fetchProjects();
+    const loadProjects = async () => {
+      const supabase = createClient();
+      const { data } = await supabase.from('projects').select('id,title,address,status,photo_url').order('created_at', { ascending: false });
+      setProjects((data as Project[]) || []);
+
+      const projectId = new URLSearchParams(window.location.search).get('projectId') || '';
+      if (projectId) setSelectedProjectId(projectId);
+    };
+
+    void loadProjects();
   }, []);
 
-  const projectPhoto = useMemo(() => {
-    return selectedProject?.photo_url || 'https://via.placeholder.com/1200x800/4F46E5/FFFFFF?text=Upload+Project+Photo';
-  }, [selectedProject]);
-
-  const fetchProjects = async () => {
-    setLoading(true);
-    const supabase = createClient();
-    const { data, error } = await supabase
-      .from('projects')
-      .select('*, project_areas(id, name, x_percent, y_percent)')
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      console.error('Error loading projects:', error);
-    }
-
-    setProjects((data as Project[]) || []);
-    setLoading(false);
-  };
-
-  const handleSelectProject = (project: Project) => {
-    setSelectedProject(project);
-    setPins(project.project_areas || []);
-  };
-
-  const handleFileChange = (projectId: string, file: File | null) => {
-    setSelectedFiles((prev) => ({ ...prev, [projectId]: file }));
-  };
-
-  const handleDelete = async (projectId: string) => {
-    if (!window.confirm('Delete this project?')) return;
-
-    const supabase = createClient();
-    const { error } = await supabase.from('projects').delete().eq('id', projectId);
-
-    if (error) {
-      console.error('Delete failed:', error);
-      return;
-    }
-
-    setProjects((prev) => prev.filter((p) => p.id !== projectId));
-    if (selectedProject?.id === projectId) {
-      setSelectedProject(null);
-      setPins([]);
-    }
-  };
-
-  const handleUploadPhoto = async (project: Project) => {
-    const file = selectedFiles[project.id];
-    if (!file) return;
-
-    setUploadingId(project.id);
-
-    try {
-      const formData = new FormData();
-      formData.append('photo', file);
-      formData.append('projectId', project.id);
-
-      const response = await fetch('/api/upload-photo', {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!response.ok) {
-        const body = await response.json().catch(() => ({}));
-        console.error('Upload failed:', body);
+  useEffect(() => {
+    const loadQuadrants = async () => {
+      if (!selectedProjectId) {
+        setQuadrants([]);
+        setSelectedQuadrantId(null);
         return;
       }
 
-      const { photo_url } = (await response.json()) as { photo_url: string };
+      const supabase = createClient();
+      const { data } = await supabase
+        .from('project_areas')
+        .select('id,name,x_percent,y_percent')
+        .eq('project_id', selectedProjectId)
+        .order('created_at', { ascending: true });
 
-      setProjects((prev) =>
-        prev.map((p) => (p.id === project.id ? { ...p, photo_url } : p)),
-      );
-
-      if (selectedProject?.id === project.id) {
-        setSelectedProject((prev) => (prev ? { ...prev, photo_url } : prev));
+      const list = ((data as ProjectArea[]) || []).filter((item) => item.id);
+      setQuadrants(list);
+      if (list.length > 0) {
+        setSelectedQuadrantId((current) => current || list[0].id);
       }
 
-      setSelectedFiles((prev) => ({ ...prev, [project.id]: null }));
-    } catch (error) {
-      console.error('Upload failed:', error);
-      window.alert('Upload failed. Please try again.');
-    } finally {
-      setUploadingId(null);
-    }
-  };
+      const zoneState: Record<string, ZoneState> = {};
+      list.forEach((item) => {
+        const raw = window.localStorage.getItem(`zone-state:${selectedProjectId}:${item.id}`);
+        zoneState[item.id] = raw ? { ...defaultZoneState, ...JSON.parse(raw) } : defaultZoneState;
+      });
+      setZoneStateByQuadrant(zoneState);
 
-  const handleImageClick = async (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!selectedProject) return;
+      const ids = list.map((item) => item.id);
+      if (ids.length > 0) {
+        const { data: photoRows } = await supabase.from('area_photos').select('id,area_id,photo_url').in('area_id', ids);
+        const grouped: Record<string, AreaPhoto[]> = {};
+        ((photoRows as AreaPhoto[]) || []).forEach((photo) => {
+          grouped[photo.area_id] = [...(grouped[photo.area_id] || []), photo];
+        });
+        setPhotosByQuadrant(grouped);
+      } else {
+        setPhotosByQuadrant({});
+      }
+    };
 
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = Math.round(((e.clientX - rect.left) / rect.width) * 100);
-    const y = Math.round(((e.clientY - rect.top) / rect.height) * 100);
+    void loadQuadrants();
+  }, [selectedProjectId]);
 
-    const name = window.prompt('Lighting zone name?');
+  const filteredProjects = useMemo(
+    () => projects.filter((project) => `${project.title} ${project.address}`.toLowerCase().includes(projectSearch.toLowerCase())),
+    [projectSearch, projects],
+  );
+
+  const createQuadrant = async (event: React.MouseEvent<HTMLDivElement>) => {
+    if (!selectedProjectId) return;
+
+    const name = window.prompt('Quadrant name');
     if (!name) return;
 
-    const optimisticPin: ProjectArea = { name, x_percent: x, y_percent: y };
-    setPins((prev) => [...prev, optimisticPin]);
+    const rect = event.currentTarget.getBoundingClientRect();
+    const x = Math.round(((event.clientX - rect.left) / rect.width) * 100);
+    const y = Math.round(((event.clientY - rect.top) / rect.height) * 100);
 
     const supabase = createClient();
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from('project_areas')
-      .insert([{ project_id: selectedProject.id, ...optimisticPin }])
-      .select('id, name, x_percent, y_percent')
+      .insert([{ project_id: selectedProjectId, name, x_percent: x, y_percent: y }])
+      .select('id,name,x_percent,y_percent')
       .single();
 
-    if (error) {
-      console.error('Save failed:', error);
-      setPins((prev) => prev.slice(0, -1));
-      window.alert(`Save failed: ${error.message}`);
+    if (!data) return;
+    const newQuadrant = data as ProjectArea;
+    setQuadrants((prev) => [...prev, newQuadrant]);
+    setSelectedQuadrantId(newQuadrant.id);
+    setZoneStateByQuadrant((prev) => ({ ...prev, [newQuadrant.id]: defaultZoneState }));
+  };
+
+  const saveZoneState = (quadrantId: string, nextState: ZoneState) => {
+    setZoneStateByQuadrant((prev) => ({ ...prev, [quadrantId]: nextState }));
+    if (!selectedProjectId) return;
+    window.localStorage.setItem(`zone-state:${selectedProjectId}:${quadrantId}`, JSON.stringify(nextState));
+  };
+
+  const uploadPhoto = async (file: File | null) => {
+    if (!selectedQuadrantId || !file) return;
+    setUploading(true);
+
+    const supabase = createClient();
+    const path = `zone-photos/${selectedQuadrantId}/${Date.now()}-${file.name}`;
+
+    const { data: uploadData, error: uploadError } = await supabase.storage.from('project-media').upload(path, file, { upsert: true });
+
+    if (uploadError) {
+      const localPhoto = { id: `local-${Date.now()}`, area_id: selectedQuadrantId, photo_url: URL.createObjectURL(file) };
+      setPhotosByQuadrant((prev) => ({ ...prev, [selectedQuadrantId]: [localPhoto, ...(prev[selectedQuadrantId] || [])] }));
+      setUploading(false);
       return;
     }
 
-    const savedPin = data as ProjectArea;
-    setPins((prev) => [...prev.slice(0, -1), savedPin]);
+    const { data: urlData } = supabase.storage.from('project-media').getPublicUrl(uploadData.path);
+    const photoUrl = urlData.publicUrl;
+
+    const { data: row } = await supabase
+      .from('area_photos')
+      .insert([{ area_id: selectedQuadrantId, photo_url: photoUrl }])
+      .select('id,area_id,photo_url')
+      .single();
+
+    if (row) {
+      const saved = row as AreaPhoto;
+      setPhotosByQuadrant((prev) => ({ ...prev, [selectedQuadrantId]: [saved, ...(prev[selectedQuadrantId] || [])] }));
+    }
+
+    setUploading(false);
   };
 
-  if (loading) {
-    return <div className="p-8 text-center text-xl font-semibold text-gray-500">Loading inspections...</div>;
-  }
+  const moveQuadrant = (direction: -1 | 1) => {
+    if (!selectedQuadrantId || quadrants.length === 0) return;
+    const index = quadrants.findIndex((item) => item.id === selectedQuadrantId);
+    if (index === -1) return;
+    const next = quadrants[(index + direction + quadrants.length) % quadrants.length];
+    setSelectedQuadrantId(next.id);
+  };
 
   return (
-    <div className="min-h-screen bg-slate-50 p-4 sm:p-8">
-      <div className="mx-auto max-w-7xl space-y-8">
-        <h1 className="text-3xl font-bold text-gray-900">Inspections</h1>
+    <div className="space-y-5 p-6">
+      <header className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <h1 className="text-2xl font-bold text-slate-900">Inspection Prep Workspace</h1>
+        <p className="mt-1 text-sm text-slate-600">Select a project, click the building image to place quadrants, and work one area at a time.</p>
 
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
-          {projects.map((project) => (
-            <div
-              key={project.id}
-              className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm cursor-pointer"
-              onClick={() => handleSelectProject(project)}
-            >
-              <h2 className="text-lg font-semibold text-gray-900">{project.title}</h2>
-              <p className="text-sm text-gray-600">{project.description}</p>
-              <p className="mt-1 text-sm text-gray-500">📍 {project.address}</p>
-
-              {project.photo_url && (
-                <div className="relative mt-3 h-44 w-full overflow-hidden rounded-lg">
-                  <Image
-                    src={project.photo_url}
-                    alt={`${project.title} photo`}
-                    fill
-                    unoptimized
-                    className="object-cover"
-                  />
-                </div>
-              )}
-
-              <div className="mt-3 flex items-center gap-2">
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => handleFileChange(project.id, e.target.files?.[0] || null)}
-                />
-                <button
-                  type="button"
-                  className="rounded bg-emerald-600 px-3 py-2 text-sm font-medium text-white disabled:bg-gray-400"
-                  disabled={!selectedFiles[project.id] || uploadingId === project.id}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    void handleUploadPhoto(project);
-                  }}
-                >
-                  {uploadingId === project.id ? 'Uploading…' : 'Upload'}
-                </button>
-              </div>
-
-              <div className="mt-3 flex gap-2">
-                <button
-                  type="button"
-                  className="rounded bg-red-600 px-3 py-2 text-sm font-medium text-white"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    void handleDelete(project.id);
-                  }}
-                >
-                  Delete
-                </button>
-              </div>
-            </div>
-          ))}
-
-          {projects.length === 0 && (
-            <p className="col-span-full text-center text-gray-500">No projects found. Create one from the dashboard.</p>
-          )}
+        <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+          <input className="rounded-md border p-2" placeholder="Search project by name or address" value={projectSearch} onChange={(e) => setProjectSearch(e.target.value)} />
+          <select className="rounded-md border p-2" value={selectedProjectId} onChange={(e) => setSelectedProjectId(e.target.value)}>
+            <option value="">Select a project</option>
+            {filteredProjects.map((project) => (
+              <option key={project.id} value={project.id}>
+                {project.title} — {project.address}
+              </option>
+            ))}
+          </select>
         </div>
+      </header>
 
-        {selectedProject && (
-          <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-            <div className="mb-4 flex items-center justify-between">
-              <div>
-                <h2 className="text-2xl font-semibold text-gray-900">{selectedProject.title}</h2>
-                <p className="text-gray-600">{selectedProject.address}</p>
-              </div>
-              <button
-                type="button"
-                className="rounded bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700"
-                onClick={() => {
-                  setSelectedProject(null);
-                  setPins([]);
-                }}
-              >
-                Close
-              </button>
-            </div>
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-[2fr_1fr]">
+        <BuildingCanvas
+          imageUrl={selectedProject?.photo_url}
+          quadrants={quadrants}
+          selectedQuadrantId={selectedQuadrantId}
+          onCanvasClick={createQuadrant}
+          onSelectQuadrant={(quadrant) => setSelectedQuadrantId(quadrant.id)}
+        />
 
-            <div
-              className="relative h-[45vh] md:h-[55vh] w-full cursor-crosshair overflow-hidden rounded-xl border-2 border-dashed border-blue-300 bg-cover bg-center"
-              style={{ backgroundImage: `url(${projectPhoto})` }}
-              onClick={handleImageClick}
-            >
-              {pins.map((pin, index) => (
-                <div
-                  key={pin.id || `${pin.name}-${index}`}
-                  className="absolute flex h-10 w-10 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 border-white bg-red-500 text-xs font-bold text-white"
-                  style={{ left: `${pin.x_percent}%`, top: `${pin.y_percent}%` }}
-                  title={`${pin.name} (${pin.x_percent}, ${pin.y_percent})`}
-                >
-                  {pin.name.slice(0, 3).toUpperCase()}
-                </div>
-              ))}
-            </div>
-
-            <p className="mt-3 text-sm text-gray-600">Click anywhere on the photo to add a lighting zone pin.</p>
-
-            {pins.length > 0 && (
-              <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
-                {pins.map((pin, index) => (
-                  <div key={pin.id || `${pin.name}-list-${index}`} className="rounded-lg border border-gray-200 p-3">
-                    <p className="font-medium text-gray-900">{pin.name}</p>
-                    <p className="text-sm text-gray-600">
-                      X: {pin.x_percent}% • Y: {pin.y_percent}%
-                    </p>
-                  </div>
-                ))}
-              </div>
-            )}
-          </section>
-        )}
+        <QuadrantPanel
+          quadrants={quadrants}
+          selected={selectedQuadrant}
+          zoneState={selectedQuadrant ? zoneStateByQuadrant[selectedQuadrant.id] || defaultZoneState : defaultZoneState}
+          photos={selectedQuadrant ? photosByQuadrant[selectedQuadrant.id] || [] : []}
+          onSelect={setSelectedQuadrantId}
+          onPrev={() => moveQuadrant(-1)}
+          onNext={() => moveQuadrant(1)}
+          onStatusChange={(status) => selectedQuadrant && saveZoneState(selectedQuadrant.id, { ...(zoneStateByQuadrant[selectedQuadrant.id] || defaultZoneState), status })}
+          onNotesChange={(notes) => selectedQuadrant && saveZoneState(selectedQuadrant.id, { ...(zoneStateByQuadrant[selectedQuadrant.id] || defaultZoneState), notes })}
+          onUpload={uploadPhoto}
+          uploading={uploading}
+          projectId={selectedProjectId}
+        />
       </div>
     </div>
   );
