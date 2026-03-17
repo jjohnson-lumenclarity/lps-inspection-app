@@ -1,321 +1,296 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import Image from 'next/image';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { createClient } from '@/utils/supabase/client';
+import { BuildingCanvas } from '@/components/inspection-prep/BuildingCanvas';
+import { QuadrantPanel } from '@/components/inspection-prep/QuadrantPanel';
+import type { AreaPhoto, ProjectArea, ZoneState } from '@/components/inspection-prep/types';
+import type { ProjectMeta } from '@/components/dashboard/types';
 
-type ProjectArea = {
-  id?: string;
-  name: string;
-  x_percent: number;
-  y_percent: number;
-};
+type Project = { id: string; title: string; address: string; status: string; photo_url?: string | null };
+const googleMapsApiKey = 'AIzaSyAodLZjU2qN3sxua9fIy54Xc12tTwiVTD4';
+const defaultZoneState: ZoneState = { notes: '', status: 'Not Started', voiceNoteUrl: '' };
+const defaultMeta = (): ProjectMeta => ({
+  contactName: '', phone: '', email: '', inspectionDate: '', reportDate: '', dueDate: '', weather: 'Clear', temperature: '', contractorJobNumber: '', inspectors: '', certificationType: 'Recert', aerialImages: [],
+});
 
-type Project = {
-  id: string;
-  title: string;
-  description: string;
-  address: string;
-  status: string;
-  photo_url?: string | null;
-  project_areas?: ProjectArea[];
-};
+const getStaticPreviewUrl = (address: string, zoom: number) => `https://maps.googleapis.com/maps/api/staticmap?size=1600x1200&maptype=satellite&zoom=${zoom}&center=${encodeURIComponent(address.trim() || 'United States')}&key=${googleMapsApiKey}`;
+const getInteractiveEmbedUrl = (address: string, zoom: number) => `https://www.google.com/maps/embed/v1/place?key=${googleMapsApiKey}&q=${encodeURIComponent(address.trim() || 'United States')}&maptype=satellite&zoom=${zoom}`;
 
-export default function InspectionsPage() {
+export default function InspectionPrepPage() {
   const [projects, setProjects] = useState<Project[]>([]);
-  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
-  const [pins, setPins] = useState<ProjectArea[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedFiles, setSelectedFiles] = useState<Record<string, File | null>>({});
-  const [uploadingId, setUploadingId] = useState<string | null>(null);
+  const [selectedProjectId, setSelectedProjectId] = useState<string>('');
+  const [quadrants, setQuadrants] = useState<ProjectArea[]>([]);
+  const [selectedQuadrantId, setSelectedQuadrantId] = useState<string | null>(null);
+  const [photosByQuadrant, setPhotosByQuadrant] = useState<Record<string, AreaPhoto[]>>({});
+  const [zoneStateByQuadrant, setZoneStateByQuadrant] = useState<Record<string, ZoneState>>({});
+  const [projectSearch, setProjectSearch] = useState('');
+  const [uploading, setUploading] = useState(false);
+  const [projectMeta, setProjectMeta] = useState<Record<string, ProjectMeta>>({});
+  const [mapAddress, setMapAddress] = useState('');
+  const [mapZoom, setMapZoom] = useState(19);
+  const [activeAerialImage, setActiveAerialImage] = useState('');
+  const [drawingEnabled, setDrawingEnabled] = useState(false);
+  const [drawingLines, setDrawingLines] = useState<Array<Array<{ x: number; y: number }>>>([]);
+  const [recording, setRecording] = useState(false);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const drawingRef = useRef(false);
 
-  const projectPhoto = useMemo(() => selectedProject?.photo_url || FALLBACK_IMAGE, [selectedProject]);
-
-  const clearSelection = () => {
-    setSelectedProject(null);
-    setPins([]);
-  };
-
-  const fetchProjects = useCallback(async () => {
-    setLoading(true);
-    setErrorMessage(null);
-
-    try {
-      const supabase = createClient();
-      const { data, error } = await supabase
-        .from('projects')
-        .select('*, project_areas(id, name, x_percent, y_percent)')
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        console.error('Error loading projects:', error);
-        setErrorMessage('Could not load projects. Please refresh and try again.');
-      }
-
-      const nextProjects = (data as Project[]) || [];
-      setProjects(nextProjects);
-
-      if (selectedProject) {
-        const freshSelected = nextProjects.find((project) => project.id === selectedProject.id) || null;
-        setSelectedProject(freshSelected);
-        setPins(freshSelected?.project_areas || []);
-      }
-    } catch (error) {
-      console.error('Unexpected error loading projects:', error);
-      setErrorMessage('Could not load projects. Please refresh and try again.');
-      setProjects([]);
-      clearSelection();
-    } finally {
-      setLoading(false);
-    }
-  }, [selectedProject]);
+  const selectedProject = projects.find((project) => project.id === selectedProjectId) || null;
+  const selectedQuadrant = quadrants.find((quadrant) => quadrant.id === selectedQuadrantId) || null;
 
   useEffect(() => {
-    void fetchProjects();
+    const loadProjects = async () => {
+      const supabase = createClient();
+      const { data } = await supabase.from('projects').select('id,title,address,status,photo_url').order('created_at', { ascending: false });
+      const projectList = (data as Project[]) || [];
+      setProjects(projectList);
+      const metaByProject: Record<string, ProjectMeta> = {};
+      projectList.forEach((project) => {
+        try {
+          const raw = window.localStorage.getItem(`project-meta:${project.id}`);
+          metaByProject[project.id] = raw ? { ...defaultMeta(), ...JSON.parse(raw) } : defaultMeta();
+        } catch { metaByProject[project.id] = defaultMeta(); }
+      });
+      setProjectMeta(metaByProject);
+      const projectId = new URLSearchParams(window.location.search).get('projectId') || '';
+      if (projectId) setSelectedProjectId(projectId);
+    };
+    void loadProjects();
   }, []);
 
-  const projectPhoto = useMemo(() => {
-    return selectedProject?.photo_url || 'https://via.placeholder.com/1200x800/4F46E5/FFFFFF?text=Upload+Project+Photo';
-  }, [selectedProject]);
-
-  const fetchProjects = async () => {
-    setLoading(true);
-    const supabase = createClient();
-    const { data, error } = await supabase
-      .from('projects')
-      .select('*, project_areas(id, name, x_percent, y_percent)')
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      console.error('Error loading projects:', error);
-    }
-
-    setProjects((data as Project[]) || []);
-    setLoading(false);
-  };
-
-  const handleSelectProject = (project: Project) => {
-    setSelectedProject(project);
-    setPins(project.project_areas || []);
-  };
-
-  const handleFileChange = (projectId: string, file: File | null) => {
-    setSelectedFiles((prev) => ({ ...prev, [projectId]: file }));
-  };
-
-  const handleDelete = async (projectId: string) => {
-    if (!window.confirm('Delete this project?')) return;
-
-    const supabase = createClient();
-    const { error } = await supabase.from('projects').delete().eq('id', projectId);
-
-    if (error) {
-      console.error('Delete failed:', error);
-      return;
-    }
-
-    setProjects((prev) => prev.filter((p) => p.id !== projectId));
-    if (selectedProject?.id === projectId) {
-      setSelectedProject(null);
-      setPins([]);
-    }
-  };
-
-  const handleUploadPhoto = async (project: Project) => {
-    const file = selectedFiles[project.id];
-    if (!file) return;
-
-    setUploadingId(project.id);
-
-    try {
-      const formData = new FormData();
-      formData.append('photo', file);
-      formData.append('projectId', project.id);
-
-      const response = await fetch('/api/upload-photo', {
-        method: 'POST',
-        body: formData,
+  useEffect(() => {
+    const loadQuadrants = async () => {
+      if (!selectedProjectId) { setQuadrants([]); setSelectedQuadrantId(null); return; }
+      const supabase = createClient();
+      const { data } = await supabase.from('project_areas').select('id,name,x_percent,y_percent').eq('project_id', selectedProjectId).order('created_at', { ascending: true });
+      const list = ((data as ProjectArea[]) || []).filter((item) => item.id);
+      setQuadrants(list);
+      if (list.length > 0) setSelectedQuadrantId((current) => current || list[0].id);
+      const zoneState: Record<string, ZoneState> = {};
+      list.forEach((item) => {
+        const raw = window.localStorage.getItem(`zone-state:${selectedProjectId}:${item.id}`);
+        zoneState[item.id] = raw ? { ...defaultZoneState, ...JSON.parse(raw) } : defaultZoneState;
       });
+      setZoneStateByQuadrant(zoneState);
+      const ids = list.map((item) => item.id);
+      if (ids.length > 0) {
+        const { data: photoRows } = await supabase.from('area_photos').select('id,area_id,photo_url').in('area_id', ids);
+        const grouped: Record<string, AreaPhoto[]> = {};
+        ((photoRows as AreaPhoto[]) || []).forEach((photo) => { grouped[photo.area_id] = [...(grouped[photo.area_id] || []), photo]; });
+        setPhotosByQuadrant(grouped);
+      } else setPhotosByQuadrant({});
+    };
+    void loadQuadrants();
+  }, [selectedProjectId]);
 
-      if (!response.ok) {
-        const body = await response.json().catch(() => ({}));
-        console.error('Upload failed:', body);
-        return;
-      }
+  useEffect(() => {
+    if (!selectedProject) return;
+    setMapAddress(selectedProject.address || '');
+    const firstImage = selectedProject.photo_url || projectMeta[selectedProject.id]?.aerialImages?.[0] || '';
+    setActiveAerialImage(firstImage);
+    try {
+      const raw = window.localStorage.getItem(`map-draw:${selectedProject.id}`);
+      setDrawingLines(raw ? JSON.parse(raw) : []);
+    } catch {
+      setDrawingLines([]);
+    }
+  }, [projectMeta, selectedProject]);
 
-      const { photo_url } = (await response.json()) as { photo_url: string };
+  const filteredProjects = useMemo(() => projects.filter((project) => `${project.title} ${project.address}`.toLowerCase().includes(projectSearch.toLowerCase())), [projectSearch, projects]);
+  const mapPreview = mapAddress ? getStaticPreviewUrl(mapAddress, mapZoom) : '';
+  const mapEmbed = mapAddress ? getInteractiveEmbedUrl(mapAddress, mapZoom) : '';
 
-      setProjects((prev) =>
-        prev.map((p) => (p.id === project.id ? { ...p, photo_url } : p)),
-      );
+  const persistMeta = (projectId: string, updater: (prev: ProjectMeta) => ProjectMeta) => {
+    const next = updater(projectMeta[projectId] || defaultMeta());
+    setProjectMeta((prev) => ({ ...prev, [projectId]: next }));
+    window.localStorage.setItem(`project-meta:${projectId}`, JSON.stringify(next));
+  };
 
-      if (selectedProject?.id === project.id) {
-        setSelectedProject((prev) => (prev ? { ...prev, photo_url } : prev));
-      }
+  const saveAerialFrameToProject = () => {
+    if (!selectedProjectId || !mapPreview) return;
+    persistMeta(selectedProjectId, (prev) => ({ ...prev, aerialImages: [mapPreview, ...(prev.aerialImages || []).filter((img) => img !== mapPreview)] }));
+    setActiveAerialImage(mapPreview);
+  };
 
-      setSelectedFiles((prev) => ({ ...prev, [project.id]: null }));
-    } catch (error) {
-      console.error('Upload failed:', error);
-      window.alert('Upload failed. Please try again.');
-    } finally {
-      setUploadingId(null);
+  const createQuadrant = async (event: React.MouseEvent<HTMLDivElement>) => {
+    if (!selectedProjectId || drawingEnabled) return;
+    const name = window.prompt('Quadrant name');
+    if (!name) return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    const x = Math.round(((event.clientX - rect.left) / rect.width) * 100);
+    const y = Math.round(((event.clientY - rect.top) / rect.height) * 100);
+    const supabase = createClient();
+    const { data } = await supabase.from('project_areas').insert([{ project_id: selectedProjectId, name, x_percent: x, y_percent: y }]).select('id,name,x_percent,y_percent').single();
+    if (!data) return;
+    const newQuadrant = data as ProjectArea;
+    setQuadrants((prev) => [...prev, newQuadrant]);
+    setSelectedQuadrantId(newQuadrant.id);
+    setZoneStateByQuadrant((prev) => ({ ...prev, [newQuadrant.id]: defaultZoneState }));
+  };
+
+  const saveZoneState = (quadrantId: string, nextState: ZoneState) => {
+    setZoneStateByQuadrant((prev) => ({ ...prev, [quadrantId]: nextState }));
+    if (!selectedProjectId) return;
+    window.localStorage.setItem(`zone-state:${selectedProjectId}:${quadrantId}`, JSON.stringify(nextState));
+  };
+
+  const startRecording = async () => {
+    if (!selectedQuadrant) return;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const rec = new MediaRecorder(stream);
+      recorderRef.current = rec;
+      chunksRef.current = [];
+      setRecording(true);
+      rec.ondataavailable = (e) => e.data.size > 0 && chunksRef.current.push(e.data);
+      rec.onstop = () => {
+        const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const result = typeof reader.result === 'string' ? reader.result : '';
+          saveZoneState(selectedQuadrant.id, { ...(zoneStateByQuadrant[selectedQuadrant.id] || defaultZoneState), voiceNoteUrl: result });
+        };
+        reader.readAsDataURL(blob);
+        stream.getTracks().forEach((track) => track.stop());
+        setRecording(false);
+      };
+      rec.start();
+    } catch {
+      setRecording(false);
+      window.alert('Microphone is unavailable in this browser/session.');
     }
   };
 
-  const handleImageClick = async (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!selectedProject) return;
+  const stopRecording = () => {
+    if (recorderRef.current && recorderRef.current.state !== 'inactive') recorderRef.current.stop();
+    setRecording(false);
+  };
 
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = Math.round(((e.clientX - rect.left) / rect.width) * 100);
-    const y = Math.round(((e.clientY - rect.top) / rect.height) * 100);
-
-    const name = window.prompt('Lighting zone name?');
-    if (!name) return;
-
-    const optimisticPin: ProjectArea = { name, x_percent: x, y_percent: y };
-    setPins((prev) => [...prev, optimisticPin]);
-
+  const uploadPhoto = async (file: File | null) => {
+    if (!selectedQuadrantId || !file) return;
+    setUploading(true);
     const supabase = createClient();
-    const { data, error } = await supabase
-      .from('project_areas')
-      .insert([{ project_id: selectedProject.id, ...optimisticPin }])
-      .select('id, name, x_percent, y_percent')
-      .single();
-
-    if (error) {
-      console.error('Save failed:', error);
-      setPins((prev) => prev.slice(0, -1));
-      window.alert(`Save failed: ${error.message}`);
+    const path = `zone-photos/${selectedQuadrantId}/${Date.now()}-${file.name}`;
+    const { data: uploadData, error: uploadError } = await supabase.storage.from('project-media').upload(path, file, { upsert: true });
+    if (uploadError) {
+      const localPhoto = { id: `local-${Date.now()}`, area_id: selectedQuadrantId, photo_url: URL.createObjectURL(file) };
+      setPhotosByQuadrant((prev) => ({ ...prev, [selectedQuadrantId]: [localPhoto, ...(prev[selectedQuadrantId] || [])] }));
+      setUploading(false);
       return;
     }
-
-    const savedPin = data as ProjectArea;
-    setPins((prev) => [...prev.slice(0, -1), savedPin]);
+    const { data: urlData } = supabase.storage.from('project-media').getPublicUrl(uploadData.path);
+    const { data: row } = await supabase.from('area_photos').insert([{ area_id: selectedQuadrantId, photo_url: urlData.publicUrl }]).select('id,area_id,photo_url').single();
+    if (row) {
+      const saved = row as AreaPhoto;
+      setPhotosByQuadrant((prev) => ({ ...prev, [selectedQuadrantId]: [saved, ...(prev[selectedQuadrantId] || [])] }));
+    }
+    setUploading(false);
   };
 
-  if (loading) {
-    return <div className="p-8 text-center text-xl font-semibold text-gray-500">Loading inspections...</div>;
-  }
+  const moveQuadrant = (direction: -1 | 1) => {
+    if (!selectedQuadrantId || quadrants.length === 0) return;
+    const index = quadrants.findIndex((item) => item.id === selectedQuadrantId);
+    if (index === -1) return;
+    setSelectedQuadrantId(quadrants[(index + direction + quadrants.length) % quadrants.length].id);
+  };
+
+  const getPoint = (event: React.PointerEvent<SVGSVGElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    return {
+      x: ((event.clientX - rect.left) / rect.width) * 100,
+      y: ((event.clientY - rect.top) / rect.height) * 100,
+    };
+  };
+
+  const onDrawStart = (event: React.PointerEvent<SVGSVGElement>) => {
+    if (!drawingEnabled) return;
+    drawingRef.current = true;
+    const p = getPoint(event);
+    setDrawingLines((prev) => [...prev, [p]]);
+  };
+
+  const onDrawMove = (event: React.PointerEvent<SVGSVGElement>) => {
+    if (!drawingEnabled || !drawingRef.current) return;
+    const p = getPoint(event);
+    setDrawingLines((prev) => {
+      const next = [...prev];
+      if (next.length === 0) return next;
+      next[next.length - 1] = [...next[next.length - 1], p];
+      return next;
+    });
+  };
+
+  const onDrawEnd = () => {
+    drawingRef.current = false;
+    if (selectedProjectId) window.localStorage.setItem(`map-draw:${selectedProjectId}`, JSON.stringify(drawingLines));
+  };
+
+  const inputStyle: React.CSSProperties = { border: '1px solid #cbd5e1', borderRadius: 10, padding: '10px 12px', fontSize: 16, width: '100%', background: '#fff' };
 
   return (
-    <div className="min-h-screen bg-slate-50 p-4 sm:p-8">
-      <div className="mx-auto max-w-7xl space-y-8">
-        <h1 className="text-3xl font-bold text-gray-900">Inspections</h1>
+    <div style={{ padding: 24, background: '#f8fafc', minHeight: '100vh' }}>
+      <header style={{ border: '1px solid #e2e8f0', borderRadius: 16, background: '#fff', padding: 24, boxShadow: '0 1px 2px rgba(15,23,42,.06)' }}>
+        <h1 style={{ margin: 0, fontSize: 42, fontWeight: 800, color: '#0f172a' }}>Inspection Prep Workspace</h1>
+        <p style={{ margin: '8px 0 0', color: '#475569', fontSize: 18 }}>Select a project, capture overhead images, place quadrants, and work one area at a time.</p>
 
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
-          {projects.map((project) => (
-            <div
-              key={project.id}
-              className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm cursor-pointer"
-              onClick={() => handleSelectProject(project)}
-            >
-              <h2 className="text-lg font-semibold text-gray-900">{project.title}</h2>
-              <p className="text-sm text-gray-600">{project.description}</p>
-              <p className="mt-1 text-sm text-gray-500">📍 {project.address}</p>
-
-              {project.photo_url && (
-                <div className="relative mt-3 h-44 w-full overflow-hidden rounded-lg">
-                  <Image
-                    src={project.photo_url}
-                    alt={`${project.title} photo`}
-                    fill
-                    unoptimized
-                    className="object-cover"
-                  />
-                </div>
-              )}
-
-              <div className="mt-3 flex items-center gap-2">
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => handleFileChange(project.id, e.target.files?.[0] || null)}
-                />
-                <button
-                  type="button"
-                  className="rounded bg-emerald-600 px-3 py-2 text-sm font-medium text-white disabled:bg-gray-400"
-                  disabled={!selectedFiles[project.id] || uploadingId === project.id}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    void handleUploadPhoto(project);
-                  }}
-                >
-                  {uploadingId === project.id ? 'Uploading…' : 'Upload'}
-                </button>
-              </div>
-
-              <div className="mt-3 flex gap-2">
-                <button
-                  type="button"
-                  className="rounded bg-red-600 px-3 py-2 text-sm font-medium text-white"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    void handleDelete(project.id);
-                  }}
-                >
-                  Delete
-                </button>
-              </div>
-            </div>
-          ))}
-
-          {projects.length === 0 && (
-            <p className="col-span-full text-center text-gray-500">No projects found. Create one from the dashboard.</p>
-          )}
+        <div style={{ marginTop: 14, display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 12 }}>
+          <input style={inputStyle} placeholder="Search project by name or address" value={projectSearch} onChange={(e) => setProjectSearch(e.target.value)} />
+          <select style={inputStyle} value={selectedProjectId} onChange={(e) => setSelectedProjectId(e.target.value)}><option value="">Select a project</option>{filteredProjects.map((project) => <option key={project.id} value={project.id}>{project.title} — {project.address}</option>)}</select>
         </div>
 
-        {selectedProject && (
-          <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-            <div className="mb-4 flex items-center justify-between">
-              <div>
-                <h2 className="text-2xl font-semibold text-gray-900">{selectedProject.title}</h2>
-                <p className="text-gray-600">{selectedProject.address}</p>
-              </div>
-              <button
-                type="button"
-                className="rounded bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700"
-                onClick={() => {
-                  setSelectedProject(null);
-                  setPins([]);
-                }}
-              >
-                Close
-              </button>
-            </div>
+        <div style={{ marginTop: 12, display: 'grid', gridTemplateColumns: '1.3fr auto auto auto', gap: 10, alignItems: 'center' }}>
+          <input style={inputStyle} placeholder="Address search for overhead image" value={mapAddress} onChange={(e) => setMapAddress(e.target.value)} />
+          <button onClick={() => setMapZoom((z) => Math.max(16, z - 1))} style={{ border: '1px solid #cbd5e1', borderRadius: 8, background: '#fff', padding: '10px 12px' }}>-</button>
+          <div style={{ ...inputStyle, textAlign: 'center', width: 70 }}>{mapZoom}</div>
+          <button onClick={() => setMapZoom((z) => Math.min(22, z + 1))} style={{ border: '1px solid #cbd5e1', borderRadius: 8, background: '#fff', padding: '10px 12px' }}>+</button>
+        </div>
 
-            <div
-              className="relative h-[45vh] md:h-[55vh] w-full cursor-crosshair overflow-hidden rounded-xl border-2 border-dashed border-blue-300 bg-cover bg-center"
-              style={{ backgroundImage: `url(${projectPhoto})` }}
-              onClick={handleImageClick}
-            >
-              {pins.map((pin, index) => (
-                <div
-                  key={pin.id || `${pin.name}-${index}`}
-                  className="absolute flex h-10 w-10 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 border-white bg-red-500 text-xs font-bold text-white"
-                  style={{ left: `${pin.x_percent}%`, top: `${pin.y_percent}%` }}
-                  title={`${pin.name} (${pin.x_percent}, ${pin.y_percent})`}
-                >
-                  {pin.name.slice(0, 3).toUpperCase()}
-                </div>
-              ))}
-            </div>
+        {mapEmbed && <iframe title="Interactive satellite map" src={mapEmbed} style={{ marginTop: 12, width: '100%', height: 260, border: '1px solid #cbd5e1', borderRadius: 10 }} loading="lazy" />}
 
-            <p className="mt-3 text-sm text-gray-600">Click anywhere on the photo to add a lighting zone pin.</p>
+        <div style={{ marginTop: 10, display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+          {mapPreview && <img src={mapPreview} alt="Map preview" style={{ width: 230, height: 130, objectFit: 'cover', borderRadius: 8, border: '1px solid #cbd5e1' }} />}
+          <button onClick={saveAerialFrameToProject} style={{ borderRadius: 10, border: 'none', background: '#2563eb', color: '#fff', padding: '10px 14px', fontWeight: 800 }}>Save current frame to project</button>
+          {(projectMeta[selectedProjectId]?.aerialImages || []).slice(0, 6).map((img) => (
+            <button key={img} onClick={() => setActiveAerialImage(img)} style={{ border: activeAerialImage === img ? '2px solid #0f172a' : '1px solid #cbd5e1', borderRadius: 8, padding: 0, background: '#fff' }}>
+              <img src={img} alt="Saved aerial" style={{ width: 110, height: 70, objectFit: 'cover', borderRadius: 6 }} />
+            </button>
+          ))}
+        </div>
+      </header>
 
-            {pins.length > 0 && (
-              <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
-                {pins.map((pin, index) => (
-                  <div key={pin.id || `${pin.name}-list-${index}`} className="rounded-lg border border-gray-200 p-3">
-                    <p className="font-medium text-gray-900">{pin.name}</p>
-                    <p className="text-sm text-gray-600">
-                      X: {pin.x_percent}% • Y: {pin.y_percent}%
-                    </p>
-                  </div>
-                ))}
-              </div>
-            )}
-          </section>
-        )}
+      <div style={{ marginTop: 18, display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16, alignItems: 'start' }}>
+        <BuildingCanvas
+          imageUrl={activeAerialImage || selectedProject?.photo_url}
+          quadrants={quadrants}
+          selectedQuadrantId={selectedQuadrantId}
+          onCanvasClick={createQuadrant}
+          onSelectQuadrant={(quadrant) => setSelectedQuadrantId(quadrant.id)}
+          drawingEnabled={drawingEnabled}
+          lines={drawingLines}
+          onDrawStart={onDrawStart}
+          onDrawMove={onDrawMove}
+          onDrawEnd={onDrawEnd}
+        />
+        <QuadrantPanel
+          quadrants={quadrants}
+          selected={selectedQuadrant}
+          zoneState={selectedQuadrant ? zoneStateByQuadrant[selectedQuadrant.id] || defaultZoneState : defaultZoneState}
+          photos={selectedQuadrant ? photosByQuadrant[selectedQuadrant.id] || [] : []}
+          onSelect={setSelectedQuadrantId}
+          onPrev={() => moveQuadrant(-1)}
+          onNext={() => moveQuadrant(1)}
+          onNotesChange={(notes) => selectedQuadrant && saveZoneState(selectedQuadrant.id, { ...(zoneStateByQuadrant[selectedQuadrant.id] || defaultZoneState), notes })}
+          onUpload={uploadPhoto}
+          uploading={uploading}
+          projectId={selectedProjectId}
+          onStartRecording={startRecording}
+          onStopRecording={stopRecording}
+          recording={recording}
+          drawingEnabled={drawingEnabled}
+          onToggleDrawing={() => setDrawingEnabled((v) => !v)}
+        />
       </div>
     </div>
   );
